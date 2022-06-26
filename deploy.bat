@@ -1,0 +1,1 @@
+gcloud functions deploy HelloGet --runtime go116 --trigger-http --allow-unauthenticated --source functions/helloworld
