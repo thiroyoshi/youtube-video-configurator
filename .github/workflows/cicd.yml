@@ -19,7 +19,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          working-directory: functions/video-converter
+          working-directory: functions
   deploy:
     name: deploy
     runs-on: ubuntu-latest
