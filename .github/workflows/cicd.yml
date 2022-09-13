@@ -30,6 +30,7 @@ jobs:
           go-version: 1.16
       - uses: actions/checkout@v3
       - name: deploy to Cloud functions
-        run: |
-          cd functions/video-converter
-          gcloud functions deploy video-converter --gen2 --runtime=go116 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated
+        run: echo deploy!
+        # run: |
+        #   cd functions/video-converter
+        #   gcloud functions deploy video-converter --gen2 --runtime=go116 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated
