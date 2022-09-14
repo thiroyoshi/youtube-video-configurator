@@ -18,13 +18,14 @@ const (
 	CLIENT_ID                  = "589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com"
 	CLIENT_SECRET              = "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"
 	REFRESH_TOKEN              = "1//0eQieIvgz7SEiCgYIARAAGA4SNwF-L9Irmh-u1ih_sszQqz21Kt273PiyOalNakdUY2a6v0BeIB9MwYGpdjPVcwfxaJTu2uWgp-8"
-	API_ENDPOINT               = "https://www.googleapis.com/youtube/v3/videos"
+	API_ENDPOINT               = "https://www.googleapis.com/youtube/v3/"
 	YOUTUBE_READ_WRITE_SCOPE   = "https://www.googleapis.com/auth/youtube"
 	YOUTUBE_VIDEO_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 )
 
 type FunctionsRequest struct {
-	Url string `json:"url"`
+	Url         string `json:"url"`
+	PublishedAt string `json:"published_at"`
 }
 
 type RefreshResponse struct {
@@ -68,7 +69,7 @@ func refreshAccessToken() (string, error) {
 
 func getVideoSnippet(videoId string) string {
 	now := time.Now()
-	videoTitle := fmt.Sprintf("GABAのプレイログ %s【ノーカット無編集】【FORTNITE / フォートナイト】【Chapter3 Season3】", now.Format("2006/01/02 15:04:05"))
+	videoTitle := fmt.Sprintf("GABAのプレイログ【ノーカット無編集】【FORTNITE / フォートナイト】【Chapter3 Season3】%s", now.Format("2006/01/02 15:04:05"))
 	videoDescription := `
 	 GABAのFORTNITEプレイログです。
 	ちょっとでも面白かったら高評価とチャンネル登録お願いします！
@@ -86,8 +87,8 @@ func getVideoSnippet(videoId string) string {
 	return requestBody
 }
 
-func updateVideoSnippet(videoId string, accsessToken string) error {
-	url := API_ENDPOINT + "?part=snippet"
+func updateVideoSnippet(videoId string, accsessToken string) ([]byte, error) {
+	url := API_ENDPOINT + "videos?part=snippet"
 	requestBody := getVideoSnippet(videoId)
 
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
@@ -97,30 +98,41 @@ func updateVideoSnippet(videoId string, accsessToken string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 	defer resp.Body.Close()
-	fmt.Println("response Status:", resp.Status)
+	fmt.Println("update snippet response Status:", resp.Status)
 	body, err := io.ReadAll(resp.Body)
+
+	return body, nil
+}
+
+func addVideoToPlaylist(videoId string, accsessToken string) ([]byte, error) {
+	url := API_ENDPOINT + "playlistItems?part=snippet"
+	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, videoId)
+
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(requestBody)))
+	req.Header.Add("Authorization", "Bearer "+accsessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer resp.Body.Close()
+	fmt.Println("add video to playlist response Status:", resp.Status)
+	body, err := io.ReadAll(resp.Body)
+
 	fmt.Println(string(body))
 
-	return nil
+	return body, nil
 }
 
 // HelloGet is an HTTP Cloud Function.
 func videoConverter(w http.ResponseWriter, r *http.Request) {
 
-	fmt.Println("========================================")
-	fmt.Println(r.Host)
-	fmt.Println(r.URL)
-	fmt.Println(r.Header)
-	fmt.Println(r.Method)
-	body, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
-	fmt.Println(string(body))
-	fmt.Println("========================================")
-
-	// Check method
+	// Check http method
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -141,14 +153,19 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get RequestData
+	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
+	fmt.Println("body:", string(body))
+
+	// Parse RequestData
 	jsonBytes := ([]byte)(body)
 	data := new(FunctionsRequest)
-	err = json.Unmarshal(jsonBytes, data)
-	if err != nil {
+	if err = json.Unmarshal(jsonBytes, data); err != nil {
 		fmt.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	fmt.Println("data:", data)
 
 	// Get videoId
 	dataStrings := strings.Split(data.Url, "?v=")
@@ -160,13 +177,22 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	videoId := dataStrings[1]
 
 	// Update video snippet
-	err = updateVideoSnippet(videoId, accsessToken)
+	resp, err := updateVideoSnippet(videoId, accsessToken)
 	if err != nil {
 		fmt.Fprint(w, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+	// Add video to playlist
+	_, err = addVideoToPlaylist(videoId, accsessToken)
+	if err != nil {
+		fmt.Fprint(w, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(resp)
 	w.WriteHeader(http.StatusOK)
 	return
 }
