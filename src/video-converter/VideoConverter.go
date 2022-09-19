@@ -69,7 +69,7 @@ func refreshAccessToken() (string, error) {
 
 func getVideoSnippet(videoId string) string {
 	now := time.Now()
-	videoTitle := fmt.Sprintf("GABAのプレイログ【ノーカット無編集】【FORTNITE / フォートナイト】【Chapter3 Season3】%s", now.Format("2006/01/02 15:04:05"))
+	videoTitle := fmt.Sprintf("GABAのプレイログ【ノーカット無編集】【FORTNITE / フォートナイト】【Chapter3 Season4】%s", now.Format("2006/01/02 15:04:05"))
 	videoDescription := `
 	 GABAのFORTNITEプレイログです。
 	ちょっとでも面白かったら高評価とチャンネル登録お願いします！
@@ -78,7 +78,7 @@ func getVideoSnippet(videoId string) string {
 	▼ Twitterやってます！フォローお願いします！
 	https://twitter.com/GABA_FORTNITE
 
-	#FORTNITE #フォートナイト #FortniteChapter3Season3 #C3S3 #PS5share
+	#FORTNITE #フォートナイト #FortniteChapter3Season4 #C3S4 #PS5share
 	`
 	categoryId := "22"
 
