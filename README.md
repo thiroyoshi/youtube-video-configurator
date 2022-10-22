@@ -5,7 +5,6 @@
 - Postmanに入ってるリフレッシュトークンの更新でOK
 - 厳密なやり方は[コチラ](https://developers.google.com/youtube/v3/guides/auth/server-side-web-apps?hl=ja)を参照すること
 
-
 ## Deploy
 
 ```
