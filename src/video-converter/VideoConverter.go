@@ -150,13 +150,16 @@ func addVideoToPlaylist(videoId string, playListId string, accsessToken string) 
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 	if err != nil {
 		return []byte{}, err
 	}
-	defer resp.Body.Close()
 	fmt.Println("add video to playlist response Status:", resp.Status)
-	body, err := io.ReadAll(resp.Body)
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return []byte{}, err
+	}
 	fmt.Println(string(body))
 
 	return body, nil
@@ -208,7 +211,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	// Get videoId
 	dataStrings := strings.Split(data.Url, "?v=")
 	if len(dataStrings) != 2 {
-		fmt.Println("invalid url: %s", data.Url)
+		fmt.Println("invalid url:", data.Url)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
