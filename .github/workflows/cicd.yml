@@ -33,7 +33,8 @@ jobs:
       - name: deploy to Cloud functions
         env:
           JSON_DECODE: ${{ secrets.GCP_YOUTUBE_CONF_DEPLOY }}
+          GOOGLE_APPLICATION_CREDENTIALS : credentials.json
         run: |
-          echo-n $JSON_DECODE | base64 --decode > ./config/credential.json
           cd src/video-converter
+          echo-n $JSON_DECODE | base64 --decode > credential.json
           gcloud functions deploy video-converter --gen2 --runtime=go120 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated
