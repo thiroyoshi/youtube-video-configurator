@@ -23,6 +23,7 @@ jobs:
           args: -v
   deploy:
     name: deploy
+    needs: golangci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v3

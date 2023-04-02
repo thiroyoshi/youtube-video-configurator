@@ -36,7 +36,6 @@ type FunctionsRequest struct {
 type RefreshResponse struct {
 	AccessToken string `json:"access_token"`
 	Expires     int    `json:"expires_in"`
-	scope       string `json:"scope"`
 	TokenType   string `json:"token_type"`
 }
 
@@ -127,11 +126,16 @@ func updateVideoSnippet(videoId string, title string, accsessToken string) ([]by
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		fmt.Println(err)
 		return []byte{}, err
 	}
 	defer resp.Body.Close()
 	fmt.Println("update snippet response Status:", resp.Status)
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return []byte{}, err
+	}
 
 	return body, nil
 }
@@ -184,6 +188,11 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	// Get RequestData
 	body, err := io.ReadAll(r.Body)
 	defer r.Body.Close()
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	fmt.Println("body:", string(body))
 
 	// Parse RequestData
@@ -230,7 +239,9 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(resp)
+	// Write Reponse
+	if _, err = w.Write(resp); err != nil {
+		fmt.Fprint(w, err)
+	}
 	w.WriteHeader(http.StatusOK)
-	return
 }
