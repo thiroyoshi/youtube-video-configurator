@@ -23,6 +23,8 @@ const (
 	YOUTUBE_VIDEO_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 	PLAYLIST_NORMAL            = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
 	PLAYLIST_SHORT             = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
+	SEASON                     = "C4S2"
+	SEASON_LONG                = "FortniteChapter4Season2"
 )
 
 type FunctionsRequest struct {
@@ -71,7 +73,7 @@ func refreshAccessToken() (string, error) {
 }
 
 func getVideoSnippet(videoId string, videoTitle string) string {
-	videoDescription := `
+	videoDescription := fmt.Sprintf(`
 	 GABAのFORTNITEプレイログです。
 	ちょっとでも面白かったら高評価とチャンネル登録お願いします！
 	
@@ -85,11 +87,31 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	▼ Twitterやってます！フォローお願いします！
 	https://twitter.com/GABA_FORTNITE
 
-	#FORTNITE #フォートナイト #FortniteChapter3Season4 #C3S4 #PS5share
-	`
+	#FORTNITE #フォートナイト #%s #%s #PS5share
+	`,
+		SEASON_LONG,
+		SEASON,
+	)
+
 	categoryId := "20"
 
-	requestBody := fmt.Sprintf(`{"id": "%s", "snippet": {"title": "%s", "description": "%s", "categoryId": "%s", "tags": ["Fortnite", "フォートナイト", "FortniteChapter3Season4", "C3S4"]}}`, videoId, videoTitle, videoDescription, categoryId)
+	requestBody := fmt.Sprintf(
+		`{
+			"id": "%s",
+			"snippet": {
+				"title": "%s",
+				"description": "%s",
+				"categoryId": "%s",
+				"tags": ["Fortnite", "フォートナイト", "%s", "%s"]
+			}
+		}`,
+		videoId,
+		videoTitle,
+		videoDescription,
+		categoryId,
+		SEASON,
+		SEASON_LONG,
+	)
 
 	return requestBody
 }
@@ -185,10 +207,10 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 
 	// Set video title and playlistId
 	now := time.Now()
-	title := fmt.Sprintf("GABAのプレイログ FORTNITE/フォートナイト/C3S4/%s", now.Format("2006/01/02 15:04:05"))
+	title := fmt.Sprintf("GABAのプレイログ FORTNITE/フォートナイト/%s/%s", SEASON, now.Format("2006/01/02 15:04:05"))
 	playlistId := PLAYLIST_NORMAL
 	if !strings.Contains(data.Title, "Fortnite_") {
-		title = data.Title + " #shorts #Fortnite #フォートナイト #C3S4"
+		title = data.Title + " #shorts #Fortnite #フォートナイト #" + SEASON
 		playlistId = PLAYLIST_SHORT
 	}
 
