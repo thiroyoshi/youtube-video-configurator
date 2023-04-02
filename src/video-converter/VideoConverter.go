@@ -150,10 +150,10 @@ func addVideoToPlaylist(videoId string, playListId string, accsessToken string) 
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return []byte{}, err
 	}
+	defer resp.Body.Close()
 	fmt.Println("add video to playlist response Status:", resp.Status)
 
 	body, err := io.ReadAll(resp.Body)
