@@ -31,7 +31,9 @@ jobs:
           go-version: '1.20'
       - uses: actions/checkout@v3
       - name: deploy to Cloud functions
-        run: echo deploy!
-        # run: |
-        #   cd src/video-converter
-        #   gcloud functions deploy video-converter --gen2 --runtime=go120 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated
+        env:
+          JSON_DECODE: ${{ secrets.GCP_YOUTUBE_CONF_DEPLOY }}
+        run: |
+          echo-n $JSON_DECODE | base64 --decode > ./config/credential.json
+          cd src/video-converter
+          gcloud functions deploy video-converter --gen2 --runtime=go120 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated
