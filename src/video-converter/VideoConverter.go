@@ -23,7 +23,7 @@ const (
 	YOUTUBE_VIDEO_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 	PLAYLIST_NORMAL            = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
 	PLAYLIST_SHORT             = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
-	SEASON                     = "C4S2"
+	SEASON                     = "C4S4"
 	SEASON_LONG                = "FortniteChapter4Season2"
 )
 
