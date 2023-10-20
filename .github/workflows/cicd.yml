@@ -32,8 +32,9 @@ jobs:
       - uses: actions/checkout@v3
       - name: deploy to Cloud functions
         env:
-          GOOGLE_APPLICATION_CREDENTIALS : credentials.json
+          JSON_ENCODED: ${{ secrets.GCP_YOUTUBE_CONF_DEPLOY }}
+          # GOOGLE_APPLICATION_CREDENTIALS : credentials.json
         run: |
           cd src/video-converter
-          echo ${{ secrets.GCP_YOUTUBE_CONF_DEPLOY }} | base64 --decode > credential.json
+          echo $JSON_ENCODED | base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
           gcloud functions deploy video-converter --gen2 --runtime=go120 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project youtube-video-configurator
