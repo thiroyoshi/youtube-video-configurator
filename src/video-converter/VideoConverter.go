@@ -82,7 +82,7 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	https://www.youtube.com/playlist?list=PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O
 
 	=========================================
-	▼ X（旧Twitter）やってます！フォローお願いします！100%フォロバします！
+	▼ X（旧Twitter）やってます！フォローお願いします！１００％フォロバします！
 	https://twitter.com/GABA_FORTNITE
 
 	#FORTNITE #フォートナイト #%s #%s #PS5share
