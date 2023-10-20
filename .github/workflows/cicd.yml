@@ -38,4 +38,5 @@ jobs:
           cd src/video-converter
           echo $JSON_ENCODED | base64 --decode > credentials.json
           export GOOGLE_APPLICATION_CREDENTIALS=credentials.json
+          printenv
           gcloud functions deploy video-converter --gen2 --runtime=go120 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project youtube-video-configurator
