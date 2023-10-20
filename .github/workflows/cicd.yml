@@ -33,10 +33,11 @@ jobs:
       - name: deploy to Cloud functions
         env:
           JSON_ENCODED: ${{ secrets.GCP_YOUTUBE_CONF_DEPLOY }}
-          GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/youtube-video-configurator/youtube-video-configurator/src/video-converter/credentials.json
+          GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/youtube-video-configurator/src/video-converter/credentials.json
         run: |
           cd src/video-converter
           echo $JSON_ENCODED | base64 --decode > ./credentials.json
           printenv
+          pwd
           echo $GOOGLE_APPLICATION_CREDENTIALS
           gcloud functions deploy video-converter --gen2 --runtime=go121 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project=youtube-video-configurator
