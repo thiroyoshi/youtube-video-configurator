@@ -1,2 +1,2 @@
 cd src/video-converter
-gcloud functions deploy video-converter --gen2 --runtime=go120 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project youtube-video-configurator
+gcloud functions deploy video-converter --gen2 --runtime=go121 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project youtube-video-configurator
