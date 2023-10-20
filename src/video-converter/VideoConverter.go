@@ -1,4 +1,3 @@
-// Package helloworld provides a set of Cloud Functions samples.
 package videoConverter
 
 import (
@@ -74,7 +73,7 @@ func refreshAccessToken() (string, error) {
 func getVideoSnippet(videoId string, videoTitle string) string {
 	videoDescription := fmt.Sprintf(`
 	 GABAのFORTNITEプレイログです。
-	ちょっとでも面白かったら高評価とチャンネル登録お願いします！
+	よかったら高評価とチャンネル登録お願いします！一緒にフォートナイトを盛り上げましょう！
 	
 	【プレイリスト集】
 	▼ ノーマル/ノーカット無編集
@@ -83,7 +82,7 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	https://www.youtube.com/playlist?list=PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O
 
 	=========================================
-	▼ Twitterやってます！フォローお願いします！
+	▼ X（旧Twitter）やってます！フォローお願いします！100%フォロバします！
 	https://twitter.com/GABA_FORTNITE
 
 	#FORTNITE #フォートナイト #%s #%s #PS5share
@@ -165,7 +164,7 @@ func addVideoToPlaylist(videoId string, playListId string, accsessToken string) 
 	return body, nil
 }
 
-// HelloGet is an HTTP Cloud Function.
+// videoConverter is an HTTP Cloud Function.
 func videoConverter(w http.ResponseWriter, r *http.Request) {
 
 	// Check http method
