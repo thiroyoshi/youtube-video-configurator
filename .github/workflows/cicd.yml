@@ -37,5 +37,5 @@ jobs:
         run: |
           cd src/video-converter
           echo $JSON_ENCODED | base64 --decode > credentials.json
-          echo credentials.json
+          cat credentials.json
           gcloud functions deploy video-converter --gen2 --runtime=go120 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project youtube-video-configurator
