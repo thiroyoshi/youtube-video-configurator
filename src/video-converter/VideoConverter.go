@@ -23,7 +23,9 @@ const (
 	PLAYLIST_NORMAL            = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
 	PLAYLIST_SHORT             = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
 	SEASON                     = "C4S4"
-	SEASON_LONG                = "FortniteChapter4Season2"
+	SEASON_LONG                = "FortniteChapter4Season4"
+	SEASON_JP                  = "シーズン4"
+	SEASON_JP_LONG             = "チャプター4シーズン4"
 )
 
 type FunctionsRequest struct {
@@ -85,7 +87,7 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	▼ X（旧Twitter）やってます！フォローお願いします！１００％フォロバします！
 	https://twitter.com/GABA_FORTNITE
 
-	#FORTNITE #フォートナイト #%s #%s #PS5share
+	#FORTNITE #フォートナイト #%s #%s #%s #%s #PS5share
 	`,
 		SEASON_LONG,
 		SEASON,
@@ -109,6 +111,8 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 		categoryId,
 		SEASON,
 		SEASON_LONG,
+		SEASON_JP,
+		SEASON_JP_LONG,
 	)
 
 	return requestBody
@@ -216,8 +220,14 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	}
 	videoId := dataStrings[1]
 
+	// Get Time Object of JST
+	jst, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		panic(err)
+	}
+	now := time.Now().In(jst)
+
 	// Set video title and playlistId
-	now := time.Now()
 	title := fmt.Sprintf("GABAのプレイログ FORTNITE/フォートナイト/%s/%s", SEASON, now.Format("2006/01/02 15:04:05"))
 	playlistId := PLAYLIST_NORMAL
 	if !strings.Contains(data.Title, "Fortnite_") {
