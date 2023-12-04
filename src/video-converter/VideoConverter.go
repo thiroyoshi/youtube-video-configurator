@@ -22,10 +22,10 @@ const (
 	YOUTUBE_VIDEO_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 	PLAYLIST_NORMAL            = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
 	PLAYLIST_SHORT             = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
-	SEASON                     = "C4S4"
-	SEASON_LONG                = "FortniteChapter4Season4"
-	SEASON_JP                  = "シーズン4"
-	SEASON_JP_LONG             = "チャプター4シーズン4"
+	SEASON                     = "C5S1"
+	SEASON_LONG                = "FortniteChapter5Season1"
+	SEASON_JP                  = "シーズン1"
+	SEASON_JP_LONG             = "チャプター5シーズン1"
 )
 
 type FunctionsRequest struct {
@@ -91,6 +91,8 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	`,
 		SEASON_LONG,
 		SEASON,
+		SEASON_JP_LONG,
+		SEASON_JP,
 	)
 
 	categoryId := "20"
@@ -102,17 +104,17 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 				"title": "%s",
 				"description": "%s",
 				"categoryId": "%s",
-				"tags": ["Fortnite", "フォートナイト", "%s", "%s"]
+				"tags": ["Fortnite", "フォートナイト", "%s", "%s", "%s", "%s"]
 			}
 		}`,
 		videoId,
 		videoTitle,
 		videoDescription,
 		categoryId,
-		SEASON,
 		SEASON_LONG,
-		SEASON_JP,
+		SEASON,
 		SEASON_JP_LONG,
+		SEASON_JP,
 	)
 
 	return requestBody
@@ -229,6 +231,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 
 	// Set video title and playlistId
 	title := fmt.Sprintf("GABAのプレイログ FORTNITE/フォートナイト/%s/%s", SEASON, now.Format("2006/01/02 15:04:05"))
+	fmt.Println("title:", title)
 	playlistId := PLAYLIST_NORMAL
 	if !strings.Contains(data.Title, "Fortnite_") {
 		title = data.Title + " #shorts #Fortnite #フォートナイト #" + SEASON
