@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
-	"time"
+	// "time"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
@@ -16,16 +17,12 @@ const (
 	TOKEN_ENDPOINT             = "https://accounts.google.com/o/oauth2/token"
 	CLIENT_ID                  = "589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com"
 	CLIENT_SECRET              = "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"
-	REFRESH_TOKEN              = "1//0evW7EJ7iSi-DCgYIARAAGA4SNwF-L9IrR0cD0P5FimyfL4FEe602WzslvAd28oudEV5A2Zpg4VlTDQZbgzcmUjgckXtXy9IcPFI"
+	REFRESH_TOKEN              = "1//0eZ6zn_HG54e-CgYIARAAGA4SNwF-L9IraHLGPq_CNydexr-Sjj0SczlZZF0M3r6A5Sp2O8Eo_1tnR7mUUeFPpRIJ2v87_8QeHEI"
 	API_ENDPOINT               = "https://www.googleapis.com/youtube/v3/"
 	YOUTUBE_READ_WRITE_SCOPE   = "https://www.googleapis.com/auth/youtube"
 	YOUTUBE_VIDEO_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 	PLAYLIST_NORMAL            = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
 	PLAYLIST_SHORT             = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
-	SEASON                     = "C5S1"
-	SEASON_LONG                = "FortniteChapter5Season1"
-	SEASON_JP                  = "シーズン1"
-	SEASON_JP_LONG             = "チャプター5シーズン1"
 )
 
 type FunctionsRequest struct {
@@ -51,7 +48,7 @@ func refreshAccessToken() (string, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	fmt.Println("refreshAccessToken response Status:", resp.Status)
+	slog.Info("refreshAccessToken response Status:", resp.Status)
 	if err != nil {
 		return "", err
 	}
@@ -84,16 +81,11 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	https://www.youtube.com/playlist?list=PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O
 
 	=========================================
-	▼ X（旧Twitter）やってます！フォローお願いします！１００％フォロバします！
+	▼ X（旧Twitter）やってます！フォローお願いします！フォトナのアカウントなら１００％フォロバします！
 	https://twitter.com/GABA_FORTNITE
 
-	#FORTNITE #フォートナイト #%s #%s #%s #%s #PS5share
-	`,
-		SEASON_LONG,
-		SEASON,
-		SEASON_JP_LONG,
-		SEASON_JP,
-	)
+	#FORTNITE #フォートナイト #PS5share
+	`)
 
 	categoryId := "20"
 
@@ -104,17 +96,13 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 				"title": "%s",
 				"description": "%s",
 				"categoryId": "%s",
-				"tags": ["Fortnite", "フォートナイト", "%s", "%s", "%s", "%s"]
+				"tags": ["Fortnite", "フォートナイト"]
 			}
 		}`,
 		videoId,
 		videoTitle,
 		videoDescription,
 		categoryId,
-		SEASON_LONG,
-		SEASON,
-		SEASON_JP_LONG,
-		SEASON_JP,
 	)
 
 	return requestBody
@@ -131,16 +119,22 @@ func updateVideoSnippet(videoId string, title string, accsessToken string) ([]by
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("failed to request to update snippet", "error", err)
 		return []byte{}, err
 	}
 	defer resp.Body.Close()
-	fmt.Println("update snippet response Status:", resp.Status)
+
+	if resp.StatusCode != 200 {
+		slog.Error("failed to update snippet", "resp.Status", resp.Status)
+		return []byte{}, fmt.Errorf("failed to update snippet")
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("failed to parse snippet response", "error", err, "status", resp.Status)
 		return []byte{}, err
 	}
+	slog.Info("updated snippet response")
 
 	return body, nil
 }
@@ -223,20 +217,15 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	videoId := dataStrings[1]
 
 	// Get Time Object of JST
-	jst, err := time.LoadLocation("Asia/Tokyo")
-	if err != nil {
-		panic(err)
-	}
-	now := time.Now().In(jst)
+	// jst, err := time.LoadLocation("Asia/Tokyo")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// now := time.Now().In(jst)
 
 	// Set video title and playlistId
-	title := fmt.Sprintf("GABAのプレイログ FORTNITE/フォートナイト/%s/%s", SEASON, now.Format("2006/01/02 15:04:05"))
-	fmt.Println("title:", title)
+	title := "GABAのプレイログ #Fortnite #フォートナイト"
 	playlistId := PLAYLIST_NORMAL
-	if !strings.Contains(data.Title, "Fortnite_") {
-		title = data.Title + " #shorts #Fortnite #フォートナイト #" + SEASON
-		playlistId = PLAYLIST_SHORT
-	}
 
 	// Update video snippet
 	resp, err := updateVideoSnippet(videoId, title, accsessToken)

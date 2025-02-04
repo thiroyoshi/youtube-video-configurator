@@ -2,8 +2,23 @@
 
 ## Get Access Token
 
-- Postmanに入ってるリフレッシュトークンの更新でOK
-- 厳密なやり方は[コチラ](https://developers.google.com/youtube/v3/guides/auth/server-side-web-apps?hl=ja)を参照すること
+### Step.1
+以下のURLにブラウザでアクセスする。途中SSL警告のような形で画面が表示されないようなことがあるが、気にせず画面上の操作をして進める。
+```
+https://accounts.google.com/o/oauth2/v2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline&include_granted_scopes=true&state=statestate&redirect_uri=http%3A%2F%2Flocalhost&response_type=code&client_id=589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com
+```
+
+### Step.2
+操作した結果、http:localhostへ遷移したとき、認可コード（code）がURLのパラメータについているので、それをコピーする。
+
+### Step.3
+Insomniaを起動し、「Get Tokens of youtube」のリクエストを開く。
+Bodyのパラメータについて、Step.2でコピーした値を”code”に入力してリクエストする。
+
+### Step.4
+レスポンスに入っているrefresh_tokenの値を取得し、ソースに埋め込む
+
+厳密なやり方は[コチラ](https://developers.google.com/youtube/v3/guides/auth/server-side-web-apps?hl=ja)を参照すること
 
 ## Deploy
 
