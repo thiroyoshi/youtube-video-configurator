@@ -4,10 +4,7 @@ go 1.21
 
 toolchain go1.21.3
 
-require (
-	github.com/dghubble/oauth1 v0.7.3
-	github.com/openai/openai-go v0.1.0-beta.10
-)
+require github.com/openai/openai-go v0.1.0-beta.10
 
 require (
 	github.com/tidwall/gjson v1.18.0 // indirect
