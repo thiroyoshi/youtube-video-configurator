@@ -42,7 +42,7 @@ jobs:
       
       - name: test blog-post 
         working-directory: src/blog-post
-        run: go test ./...
+        run: go test -v -cover ./...
 
         # deploy:
   #   name: deploy
