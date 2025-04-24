@@ -38,7 +38,7 @@ jobs:
       #   working-directory: src/video-converter
       #   run: go test ./...
       - name: Run Blog Post Tests
-        working-directory: src/blog-post
+        working-directory: ../src/blog-post
         run: go test ./...
 
         # deploy:
