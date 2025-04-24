@@ -1,3 +1,4 @@
+// Package videoConverter は、YouTube動画の設定を管理するためのCloud Functionsパッケージです。
 package videoConverter
 
 import (
@@ -15,15 +16,15 @@ import (
 )
 
 const (
-	TOKEN_ENDPOINT             = "https://accounts.google.com/o/oauth2/token"
-	CLIENT_ID                  = "589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com"
-	CLIENT_SECRET              = "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"
-	REFRESH_TOKEN              = "1//0eZ6zn_HG54e-CgYIARAAGA4SNwF-L9IraHLGPq_CNydexr-Sjj0SczlZZF0M3r6A5Sp2O8Eo_1tnR7mUUeFPpRIJ2v87_8QeHEI"
-	API_ENDPOINT               = "https://www.googleapis.com/youtube/v3/"
-	YOUTUBE_READ_WRITE_SCOPE   = "https://www.googleapis.com/auth/youtube"
-	YOUTUBE_VIDEO_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
-	PLAYLIST_NORMAL            = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
-	PLAYLIST_SHORT             = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
+	tokenEndpoint           = "https://accounts.google.com/o/oauth2/token"
+	clientID                = "589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com"
+	clientSecret            = "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"
+	refreshToken            = "1//0eZ6zn_HG54e-CgYIARAAGA4SNwF-L9IraHLGPq_CNydexr-Sjj0SczlZZF0M3r6A5Sp2O8Eo_1tnR7mUUeFPpRIJ2v87_8QeHEI"
+	apiEndpoint             = "https://www.googleapis.com/youtube/v3/"
+	youtubeReadWriteScope   = "https://www.googleapis.com/auth/youtube"
+	youtubeVideoUploadScope = "https://www.googleapis.com/auth/youtube.upload"
+	playlistNormal          = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
+	playlistShort           = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
 )
 
 type FunctionsRequest struct {
@@ -43,8 +44,8 @@ func init() {
 }
 
 func refreshAccessToken() (string, error) {
-	requestBody := fmt.Sprintf("client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token", CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN)
-	req, _ := http.NewRequest("POST", TOKEN_ENDPOINT, bytes.NewBuffer([]byte(requestBody)))
+	requestBody := fmt.Sprintf("client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token", clientID, clientSecret, refreshToken)
+	req, _ := http.NewRequest("POST", tokenEndpoint, bytes.NewBuffer([]byte(requestBody)))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{}
@@ -115,7 +116,7 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 }
 
 func updateVideoSnippet(videoId string, title string, accsessToken string) ([]byte, error) {
-	url := API_ENDPOINT + "videos?part=snippet"
+	url := apiEndpoint + "videos?part=snippet"
 	requestBody := getVideoSnippet(videoId, title)
 
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
@@ -150,7 +151,7 @@ func updateVideoSnippet(videoId string, title string, accsessToken string) ([]by
 }
 
 func addVideoToPlaylist(videoId string, playListId string, accsessToken string) ([]byte, error) {
-	url := API_ENDPOINT + "playlistItems?part=snippet"
+	url := apiEndpoint + "playlistItems?part=snippet"
 	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoId)
 
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(requestBody)))
@@ -316,7 +317,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 
 	// Set video title and playlistId
 	title := fmt.Sprintf("GABAのプレイログ %s #Fortnite #gameplay #フォートナイト #プレイ動画 #ps5", now.Format("2006-01-02 15:04:05"))
-	playlistId := PLAYLIST_NORMAL
+	playlistId := playlistNormal
 
 	// Update video snippet
 	resp, err := updateVideoSnippet(videoId, title, accsessToken)
