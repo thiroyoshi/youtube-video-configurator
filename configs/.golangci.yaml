@@ -1,0 +1,41 @@
+run:
+  go: '1.21'
+  timeout: 5m
+  allow-parallel-runners: true
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - gosimple
+    - typecheck
+    - unused
+    - misspell
+    - revive
+
+linters-settings:
+  revive:
+    rules:
+      - name: var-naming
+        severity: warning
+      - name: exported
+        severity: warning
+      - name: package-comments
+        severity: warning
+
+  gofmt:
+    simplify: true
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec

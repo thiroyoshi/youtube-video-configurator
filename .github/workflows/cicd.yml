@@ -4,37 +4,55 @@ on:
     branches:
       - main
   pull_request:
-permissions:
-  contents: read
+    branches:
+      - main
+
 jobs:
-  golangci:
-    name: lint
+  ci:
+    name: Run CI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
       - uses: actions/checkout@v3
-      - name: golangci-lint
+      
+      - name: golangci-lint video-converter
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
           working-directory: src/video-converter
-          args: -v
-  deploy:
-    name: deploy
-    needs: golangci
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-go@v4
+          args: --config=../../configs/.golangci.yaml -v
+
+      - name: golangci-lint blog-post
+        uses: golangci/golangci-lint-action@v3
         with:
-          go-version: '1.21'
-      - uses: actions/checkout@v3
-      - name: deploy to Cloud functions
-        env:
-          JSON_ENCODED: ${{ secrets.GCP_YOUTUBE_CONF_DEPLOY }}
-          GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/youtube-video-configurator/youtube-video-configurator/src/video-converter/credentials.json
-        run: |
-          cd src/video-converter
-          echo $JSON_ENCODED | base64 --decode > ./credentials.json
-          gcloud functions deploy video-converter --gen2 --runtime=go121 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project=youtube-video-configurator
+          version: latest
+          working-directory: src/blog-post
+          args: --config=../../configs/.golangci.yaml -v
+
+      # - name: Run Tests
+      #   working-directory: src/video-converter
+      #   run: go test ./...
+
+      # - name: Run Blog Post Tests
+      #   working-directory: src/blog-post
+      #   run: go test ./...
+
+        # deploy:
+  #   name: deploy
+  #   needs: golangci
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/setup-go@v4
+  #       with:
+  #         go-version: '1.21'
+  #     - uses: actions/checkout@v3
+  #     - name: deploy to Cloud functions
+  #       env:
+  #         JSON_ENCODED: ${{ secrets.GCP_YOUTUBE_CONF_DEPLOY }}
+  #         GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/youtube-video-configurator/youtube-video-configurator/src/video-converter/credentials.json
+  #       run: |
+  #         cd src/video-converter
+  #         echo $JSON_ENCODED | base64 --decode > ./credentials.json
+  #         gcloud functions deploy video-converter --gen2 --runtime=go121 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project=youtube-video-configurator

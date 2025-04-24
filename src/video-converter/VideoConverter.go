@@ -8,9 +8,10 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	// "time"
+	"time"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"github.com/dghubble/oauth1"
 )
 
 const (
@@ -48,12 +49,17 @@ func refreshAccessToken() (string, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	slog.Info("refreshAccessToken response Status:", resp.Status)
+	slog.Info("refreshAccessToken response", "status", resp.Status)
 	if err != nil {
 		return "", err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -70,7 +76,7 @@ func refreshAccessToken() (string, error) {
 }
 
 func getVideoSnippet(videoId string, videoTitle string) string {
-	videoDescription := fmt.Sprintf(`
+	videoDescription := `
 	 GABAのFORTNITEプレイログです。
 	よかったら高評価とチャンネル登録お願いします！一緒にフォートナイトを盛り上げましょう！
 	
@@ -84,8 +90,8 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	▼ X（旧Twitter）やってます！フォローお願いします！フォトナのアカウントなら１００％フォロバします！
 	https://twitter.com/GABA_FORTNITE
 
-	#FORTNITE #フォートナイト #PS5share
-	`)
+	#FORTNITE #フォートナイト #PS5share #gameplay
+	`
 
 	categoryId := "20"
 
@@ -96,7 +102,7 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 				"title": "%s",
 				"description": "%s",
 				"categoryId": "%s",
-				"tags": ["Fortnite", "フォートナイト"]
+				"tags": ["Fortnite", "フォートナイト", "gameplay", "プレイ動画"]
 			}
 		}`,
 		videoId,
@@ -122,7 +128,11 @@ func updateVideoSnippet(videoId string, title string, accsessToken string) ([]by
 		slog.Error("failed to request to update snippet", "error", err)
 		return []byte{}, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
 
 	if resp.StatusCode != 200 {
 		slog.Error("failed to update snippet", "resp.Status", resp.Status)
@@ -152,7 +162,11 @@ func addVideoToPlaylist(videoId string, playListId string, accsessToken string) 
 	if err != nil {
 		return []byte{}, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
 	fmt.Println("add video to playlist response Status:", resp.Status)
 
 	body, err := io.ReadAll(resp.Body)
@@ -162,6 +176,79 @@ func addVideoToPlaylist(videoId string, playListId string, accsessToken string) 
 	fmt.Println(string(body))
 
 	return body, nil
+}
+
+func postX(url string) error {
+	// APIキーとアクセストークンを設定
+	apiKey := "vR8oo1pAQFgeYKlfxIPSrgRq6"
+	apiSecretKey := "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
+	accessToken := "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
+	accessTokenSecret := "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
+
+	// OAuth1 認証設定
+	config := oauth1.NewConfig(apiKey, apiSecretKey)
+	token := oauth1.NewToken(accessToken, accessTokenSecret)
+	httpClient := config.Client(oauth1.NoContext, token)
+
+	// APIエンドポイントURL
+	endpoint := "https://api.twitter.com/2/tweets"
+
+	// Data structure for the Tweet
+	type Tweet struct {
+		Text string `json:"text"`
+	}
+
+	template := `
+	プレイ動画をYouTubeにアップロードしました！
+	ぜひ見てください！気に入ったら高評価とチャンネル登録もお願いします！
+	一緒にフォートナイトを盛り上げましょう！
+	%s
+	
+	#Fortnite #gameplay #フォートナイト #プレイ動画 #YouTube
+	`
+
+	tweet := Tweet{Text: fmt.Sprintf(template, url)}
+
+	// Marshal the Tweet struct to JSON
+	jsonData, err := json.Marshal(tweet)
+	if err != nil {
+		fmt.Println("JSONマーシャルエラー:", err)
+		return err
+	}
+
+	// POSTリクエストを作成
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Println("リクエスト作成エラー:", err)
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	// リクエストを送信
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		fmt.Println("リクエスト送信エラー:", err)
+		return err
+	}
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
+
+	// レスポンスを読み取る
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("レスポンス読み取りエラー:", err)
+		return err
+	}
+
+	// 結果を表示
+	fmt.Println("レスポンスステータス:", resp.Status)
+	fmt.Println("レスポンスボディ:", string(body))
+
+	return nil
 }
 
 // videoConverter is an HTTP Cloud Function.
@@ -189,7 +276,11 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 
 	// Get RequestData
 	body, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
+	defer func() {
+		if cerr := r.Body.Close(); cerr != nil {
+			slog.Error("failed to close request body", "error", cerr)
+		}
+	}()
 	if err != nil {
 		fmt.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -217,35 +308,56 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	videoId := dataStrings[1]
 
 	// Get Time Object of JST
-	// jst, err := time.LoadLocation("Asia/Tokyo")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// now := time.Now().In(jst)
+	jst, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		panic(err)
+	}
+	now := time.Now().In(jst)
 
 	// Set video title and playlistId
-	title := "GABAのプレイログ #Fortnite #フォートナイト"
+	title := fmt.Sprintf("GABAのプレイログ %s #Fortnite #gameplay #フォートナイト #プレイ動画 #ps5", now.Format("2006-01-02 15:04:05"))
 	playlistId := PLAYLIST_NORMAL
 
 	// Update video snippet
 	resp, err := updateVideoSnippet(videoId, title, accsessToken)
 	if err != nil {
-		fmt.Fprint(w, err)
 		w.WriteHeader(http.StatusInternalServerError)
+		if _, werr := fmt.Fprint(w, err); werr != nil {
+			slog.Error("failed to write error response", "error", werr)
+		}
 		return
 	}
 
 	// Add video to playlist
 	_, err = addVideoToPlaylist(videoId, playlistId, accsessToken)
 	if err != nil {
-		fmt.Fprint(w, err)
+		slog.Error("failed to add video to playlist", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		if _, werr := fmt.Fprint(w, err); werr != nil {
+			slog.Error("failed to write error response", "error", werr)
+		}
 		return
 	}
 
-	// Write Reponse
+	// Post to X
+	err = postX(data.Url)
+	if err != nil {
+		slog.Error("failed to post to X", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		if _, werr := fmt.Fprint(w, err); werr != nil {
+			slog.Error("failed to write error response", "error", werr)
+		}
+		return
+	}
+
+	// Write Response
 	if _, err = w.Write(resp); err != nil {
-		fmt.Fprint(w, err)
+		slog.Error("failed to write response", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		if _, werr := fmt.Fprint(w, err); werr != nil {
+			slog.Error("failed to write error response", "error", werr)
+		}
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 }

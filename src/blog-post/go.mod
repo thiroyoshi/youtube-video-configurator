@@ -1,16 +1,17 @@
 module thiroyoshi.com/blog-post
 
-go 1.19
+go 1.21
 
-require github.com/GoogleCloudPlatform/functions-framework-go v1.6.1
+toolchain go1.21.3
 
 require (
-	github.com/cloudevents/sdk-go/v2 v2.6.1 // indirect
-	github.com/google/uuid v1.1.2 // indirect
-	github.com/json-iterator/go v1.1.10 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
-	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
-	go.uber.org/atomic v1.4.0 // indirect
-	go.uber.org/multierr v1.1.0 // indirect
-	go.uber.org/zap v1.10.0 // indirect
+	github.com/dghubble/oauth1 v0.7.3
+	github.com/openai/openai-go v0.1.0-beta.10
+)
+
+require (
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 )
