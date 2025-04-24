@@ -40,8 +40,8 @@ jobs:
           go-version: '1.24'
       - uses: actions/checkout@v4
       
-      - name: run tests
-        working-directory: src
+      - name: test blog-post 
+        working-directory: src/blog-post
         run: go test ./...
 
         # deploy:
