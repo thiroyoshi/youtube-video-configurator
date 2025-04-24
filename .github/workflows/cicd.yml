@@ -9,7 +9,7 @@ on:
 
 jobs:
   ci:
-    name: Run CI
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v4
@@ -31,6 +31,9 @@ jobs:
           working-directory: src/blog-post
           args: --config=../../configs/.golangci.yaml -v
 
+      # name: test
+      # runs-on: ubuntu-latest
+      # steps:
       # - name: Run Tests
       #   working-directory: src/video-converter
       #   run: go test ./...
