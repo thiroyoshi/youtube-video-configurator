@@ -1,5 +1,5 @@
-// Package videoConverter は、YouTube動画の設定を管理するためのCloud Functionsパッケージです。
-package videoConverter
+// Package videoconverter は、YouTube動画の設定を管理するためのCloud Functionsパッケージです。
+package videoconverter
 
 import (
 	"bytes"
@@ -27,12 +27,14 @@ const (
 	playlistShort           = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
 )
 
+// FunctionsRequest はCloud Functionsへのリクエストデータを表す構造体です。
 type FunctionsRequest struct {
-	Url         string `json:"url"`
+	URL         string `json:"url"`
 	Title       string `json:"title"`
 	PublishedAt string `json:"published_at"`
 }
 
+// RefreshResponse はOAuthトークンのリフレッシュレスポンスを表す構造体です。
 type RefreshResponse struct {
 	AccessToken string `json:"access_token"`
 	Expires     int    `json:"expires_in"`
@@ -76,7 +78,7 @@ func refreshAccessToken() (string, error) {
 	return data.AccessToken, nil
 }
 
-func getVideoSnippet(videoId string, videoTitle string) string {
+func getVideoSnippet(videoID string, videoTitle string) string {
 	videoDescription := `
 	 GABAのFORTNITEプレイログです。
 	よかったら高評価とチャンネル登録お願いします！一緒にフォートナイトを盛り上げましょう！
@@ -94,7 +96,7 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	#FORTNITE #フォートナイト #PS5share #gameplay
 	`
 
-	categoryId := "20"
+	categoryID := "20"
 
 	requestBody := fmt.Sprintf(
 		`{
@@ -106,10 +108,10 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 				"tags": ["Fortnite", "フォートナイト", "gameplay", "プレイ動画"]
 			}
 		}`,
-		videoId,
+		videoID,
 		videoTitle,
 		videoDescription,
-		categoryId,
+		categoryID,
 	)
 
 	return requestBody
@@ -300,9 +302,9 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("data:", data)
 
 	// Get videoId
-	dataStrings := strings.Split(data.Url, "?v=")
+	dataStrings := strings.Split(data.URL, "?v=")
 	if len(dataStrings) != 2 {
-		fmt.Println("invalid url:", data.Url)
+		fmt.Println("invalid url:", data.URL)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -341,7 +343,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Post to X
-	err = postX(data.Url)
+	err = postX(data.URL)
 	if err != nil {
 		slog.Error("failed to post to X", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
