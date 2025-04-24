@@ -7,7 +7,6 @@ run:
 
 linters:
   enable:
-    - gofmt
     - goimports
     - govet
     - staticcheck

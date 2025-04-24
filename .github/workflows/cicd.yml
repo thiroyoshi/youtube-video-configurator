@@ -35,6 +35,11 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+      - uses: actions/checkout@v4
+      
       - name: run tests
         working-directory: src
         run: go test ./...
