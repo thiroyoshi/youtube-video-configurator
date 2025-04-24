@@ -29,7 +29,7 @@ func getLatestPostsFromX(now time.Time) (string, error) {
 
 	// Data structure for the Tweet
 	type Tweet struct {
-		data []struct {
+		Data []struct {
 			Text      string `json:"text"`
 			CreatedAt string `json:"created_at"`
 		} `json:"data"`
@@ -58,7 +58,11 @@ func getLatestPostsFromX(now time.Time) (string, error) {
 		fmt.Println("リクエスト送信エラー:", err)
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("resp.Body.Close error: %v\n", err)
+		}
+	}()
 
 	// レスポンスを読み取る
 	body, err := io.ReadAll(resp.Body)
