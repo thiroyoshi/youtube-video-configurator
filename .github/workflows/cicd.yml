@@ -16,14 +16,15 @@ jobs:
         with:
           go-version: '1.24'
       - uses: actions/checkout@v4
-      - name: golangci-lint video-converter
+
+      - name: lint video-converter
         uses: golangci/golangci-lint-action@v7
         with:
           version: latest
           working-directory: src/video-converter
           args: --config=../../configs/.golangci.yaml -v
 
-      - name: golangci-lint blog-post
+      - name: lint blog-post
         uses: golangci/golangci-lint-action@v7
         with:
           version: latest
@@ -34,7 +35,8 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     steps:
-      - name: Run Blog Post Tests
+      - name: run tests
+        working-directory: src
         run: go test ./...
 
         # deploy:
