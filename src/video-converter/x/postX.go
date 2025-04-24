@@ -1,3 +1,4 @@
+//nolint:unused
 package x
 
 import (
@@ -9,6 +10,11 @@ import (
 
 	"github.com/dghubble/oauth1"
 )
+
+// Data structure for the Tweet
+type Tweet struct {
+	Text string `json:"text"`
+}
 
 func postX(message string) error {
 	// APIキーとアクセストークンを設定
@@ -24,11 +30,6 @@ func postX(message string) error {
 
 	// APIエンドポイントURL
 	endpoint := "https://api.twitter.com/2/tweets"
-
-	// Data structure for the Tweet
-	type Tweet struct {
-		Text string `json:"text"`
-	}
 
 	tweet := Tweet{Text: message}
 
