@@ -4,11 +4,12 @@ package x
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dghubble/oauth1"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/dghubble/oauth1"
 )
 
 func getLatestPostsFromX(now time.Time) (string, error) {
