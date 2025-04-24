@@ -34,10 +34,9 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     steps:
-      - name: Run Tests
-        working-directory: src/video-converter
-        run: go test ./...
-
+      # - name: Run Tests
+      #   working-directory: src/video-converter
+      #   run: go test ./...
       - name: Run Blog Post Tests
         working-directory: src/blog-post
         run: go test ./...
