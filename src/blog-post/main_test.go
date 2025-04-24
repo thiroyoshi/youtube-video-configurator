@@ -95,7 +95,10 @@ func TestGetLatestFromRSS(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/xml")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tc.mockXML))
+				_, err := w.Write([]byte(tc.mockXML))
+				if err != nil {
+					t.Fatalf("failed to write response: %v", err)
+				}
 			}))
 			defer server.Close()
 
