@@ -78,15 +78,30 @@ type Article struct {
 	PubDate time.Time
 }
 
-func getLatestFromRSS(searchword string, now time.Time) ([]Article, error) {
+// HTTPClient interfaceを定義
+type HTTPClient interface {
+	Get(url string) (*http.Response, error)
+}
+
+// デフォルトのHTTPクライアント
+var defaultHTTPClient HTTPClient = &http.Client{}
+
+func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, baseURL string) ([]Article, error) {
+	if httpClient == nil {
+		httpClient = defaultHTTPClient
+	}
+	if baseURL == "" {
+		baseURL = "https://news.google.com/rss/search"
+	}
+
 	today := now.Format("2006-01-02")
 	lastweek := now.AddDate(0, 0, -7).Format("2006-01-02")
 
-	url := fmt.Sprintf("https://news.google.com/rss/search?q=%s+after:%s+before:%s&hl=ja&gl=JP&ceid=JP:ja", searchword, lastweek, today)
+	url := fmt.Sprintf("%s?q=%s+after:%s+before:%s&hl=ja&gl=JP&ceid=JP:ja", baseURL, searchword, lastweek, today)
 	fmt.Println("url:", url)
 
 	// RSSフィードを取得
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("RSSフィードの取得に失敗: %v", err)
 	}
@@ -403,10 +418,9 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().In(jst)
-
 	searchword := "Fortnite"
 
-	articles, err := getLatestFromRSS(searchword, now)
+	articles, err := getLatestFromRSS(searchword, now, nil, "")
 	if err != nil {
 		fmt.Println("RSSフィードの取得に失敗:", err)
 		return

@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  ci:
+  golangci-lint:
     name: lint
     runs-on: ubuntu-latest
     steps:
@@ -31,16 +31,17 @@ jobs:
           working-directory: src/blog-post
           args: --config=../../configs/.golangci.yaml -v
 
-      # name: test
-      # runs-on: ubuntu-latest
-      # steps:
-      # - name: Run Tests
-      #   working-directory: src/video-converter
-      #   run: go test ./...
+  unit-test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Tests
+        working-directory: src/video-converter
+        run: go test ./...
 
-      # - name: Run Blog Post Tests
-      #   working-directory: src/blog-post
-      #   run: go test ./...
+      - name: Run Blog Post Tests
+        working-directory: src/blog-post
+        run: go test ./...
 
         # deploy:
   #   name: deploy
