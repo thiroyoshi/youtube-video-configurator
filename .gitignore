@@ -54,11 +54,6 @@ go.work
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode
 
-secret.json
-secret.txt
-client_secrets.json
-config.json
-
 # Created by https://www.toptal.com/developers/gitignore/api/windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=windows
 
@@ -89,3 +84,7 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/windows
+
+secret.json
+secret.txt
+config.json
