@@ -1,3 +1,5 @@
+// Package x はX（旧Twitter）のAPI操作を行うパッケージです。
+
 //nolint:unused
 package x
 

@@ -1,4 +1,5 @@
-//nolint:unused
+// Package x はX（旧Twitter）のAPI操作を行うパッケージです。
+
 package x
 
 import (
@@ -11,7 +12,7 @@ import (
 	"github.com/dghubble/oauth1"
 )
 
-// Data structure for the Tweet
+// Tweet はXのツイートデータを表す構造体です。ツイートの本文とその他のメタデータを含みます。
 type Tweet struct {
 	Text string `json:"text"`
 }

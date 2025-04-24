@@ -117,9 +117,9 @@ func getVideoSnippet(videoID string, videoTitle string) string {
 	return requestBody
 }
 
-func updateVideoSnippet(videoId string, title string, accsessToken string) ([]byte, error) {
+func updateVideoSnippet(videoID string, title string, accsessToken string) ([]byte, error) {
 	url := apiEndpoint + "videos?part=snippet"
-	requestBody := getVideoSnippet(videoId, title)
+	requestBody := getVideoSnippet(videoID, title)
 
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
 	req.Header.Add("Authorization", "Bearer "+accsessToken)
@@ -152,9 +152,9 @@ func updateVideoSnippet(videoId string, title string, accsessToken string) ([]by
 	return body, nil
 }
 
-func addVideoToPlaylist(videoId string, playListId string, accsessToken string) ([]byte, error) {
+func addVideoToPlaylist(videoID string, playListId string, accsessToken string) ([]byte, error) {
 	url := apiEndpoint + "playlistItems?part=snippet"
-	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoId)
+	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoID)
 
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(requestBody)))
 	req.Header.Add("Authorization", "Bearer "+accsessToken)
@@ -308,7 +308,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	videoId := dataStrings[1]
+	videoID := dataStrings[1]
 
 	// Get Time Object of JST
 	jst, err := time.LoadLocation("Asia/Tokyo")
@@ -319,10 +319,10 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 
 	// Set video title and playlistId
 	title := fmt.Sprintf("GABAのプレイログ %s #Fortnite #gameplay #フォートナイト #プレイ動画 #ps5", now.Format("2006-01-02 15:04:05"))
-	playlistId := playlistNormal
+	playlistID := playlistNormal
 
 	// Update video snippet
-	resp, err := updateVideoSnippet(videoId, title, accsessToken)
+	resp, err := updateVideoSnippet(videoID, title, accsessToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, werr := fmt.Fprint(w, err); werr != nil {
@@ -332,7 +332,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add video to playlist
-	_, err = addVideoToPlaylist(videoId, playlistId, accsessToken)
+	_, err = addVideoToPlaylist(videoID, playlistID, accsessToken)
 	if err != nil {
 		slog.Error("failed to add video to playlist", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
