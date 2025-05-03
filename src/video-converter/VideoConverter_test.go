@@ -38,15 +38,6 @@ func mockResponse(statusCode int, body string) *http.Response {
 	}
 }
 
-func getRequestBody(req *http.Request) string {
-	if req.Body == nil {
-		return ""
-	}
-	
-	body, _ := io.ReadAll(req.Body)
-	req.Body = io.NopCloser(bytes.NewBuffer(body))
-	return string(body)
-}
 
 type errorReader struct{}
 
@@ -502,12 +493,12 @@ func TestPostX(t *testing.T) {
 
 				if tc.introduceDefect {
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(`{"error": "server_error"}`))
+					_, _ = w.Write([]byte(`{"error": "server_error"}`))
 					return
 				}
 
 				w.WriteHeader(tc.responseStatus)
-				w.Write([]byte(tc.responseBody))
+				_, _ = w.Write([]byte(tc.responseBody))
 			}))
 			defer server.Close()
 			
