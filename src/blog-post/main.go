@@ -334,6 +334,7 @@ func addContentFormat(content string) string {
 	links := []string{
 		"<p><a href=\"https://amzn.to/4251ZYM\">【純正品】DualSense ワイヤレスコントローラー \"フォートナイト\" リミテッドエディション（CFI-ZCT1JZ4）</a></p>",
 		"<p><a href=\"https://amzn.to/43IeMDf\"> ガレリア ゲーミングPC GALLERIA RM5R-R46 RTX 4060 Ryzen 5 4500 メモリ32GB SSD1TB Windows11</a></p>",
+		"<a href=\"https://amzn.to/44z6bmP\">【任天堂公式ライセンス商品】PowerA エンハンスド・ワイヤレスコントローラー for Nintendo Switch 【国内正規品2年保証】</a>",
 	}
 
 	disclaimer := `
