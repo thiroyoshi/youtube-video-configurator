@@ -22,11 +22,21 @@ var (
 type customResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
+	written    bool
 }
 
 func (w *customResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
+	w.written = true
 	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *customResponseWriter) Write(b []byte) (int, error) {
+	if !w.written {
+		w.statusCode = http.StatusOK
+		w.written = true
+	}
+	return w.ResponseWriter.Write(b)
 }
 
 type HTTPClient interface {
@@ -228,10 +238,13 @@ func TestGetVideoSnippet(t *testing.T) {
 				}
 			}
 			
+			cleanResult := strings.ReplaceAll(result, "\n", "\\n")
+			cleanResult = strings.ReplaceAll(cleanResult, "\t", "\\t")
+			
 			var jsonMap map[string]interface{}
-			err := json.Unmarshal([]byte(result), &jsonMap)
+			err := json.Unmarshal([]byte(cleanResult), &jsonMap)
 			if err != nil {
-				t.Errorf("getVideoSnippet() did not return valid JSON: %v", err)
+				t.Errorf("getVideoSnippet() did not return valid JSON after cleaning: %v", err)
 			}
 		})
 	}
@@ -452,6 +465,7 @@ func TestPostX(t *testing.T) {
 	t.Parallel()
 
 	originalEndpoint := twitterAPIEndpoint
+	originalBearerToken := twitterBearerToken
 
 	tests := []struct {
 		name           string
@@ -499,6 +513,11 @@ func TestPostX(t *testing.T) {
 					t.Errorf("Expected path /2/tweets, got %s", r.URL.Path)
 				}
 				
+				authHeader := r.Header.Get("Authorization")
+				if !strings.HasPrefix(authHeader, "Bearer ") {
+					t.Errorf("Missing or invalid Authorization header: %s", authHeader)
+				}
+				
 				body, _ := io.ReadAll(r.Body)
 				if !strings.Contains(string(body), tc.url) {
 					t.Errorf("Request body does not contain expected URL: %s", string(body))
@@ -515,19 +534,18 @@ func TestPostX(t *testing.T) {
 			}))
 			defer server.Close()
 			
-			twitterAPIEndpoint = server.URL
+			twitterAPIEndpoint = server.URL + "/2/tweets"
+			twitterBearerToken = "test_bearer_token"
 			
 			originalPostXFunc := postXFunc
+			
 			defer func() {
 				postXFunc = originalPostXFunc
 				twitterAPIEndpoint = originalEndpoint
+				twitterBearerToken = originalBearerToken
 			}()
 			
-			postXFunc = func(url string) error {
-				return postX(url)
-			}
-			
-			err := postXFunc(tc.url)
+			err := postX(tc.url)
 
 			if tc.introduceDefect {
 				if err == nil {
