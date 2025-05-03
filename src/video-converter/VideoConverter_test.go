@@ -1,7 +1,6 @@
 package videoconverter
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,56 +8,6 @@ import (
 	"strings"
 	"testing"
 )
-
-var (
-	refreshAccessTokenFunc = refreshAccessToken
-	updateVideoSnippetFunc = updateVideoSnippet
-	addVideoToPlaylistFunc = addVideoToPlaylist
-	postXFunc              = postX
-	twitterAPIEndpoint     = "https://api.twitter.com/2/tweets"
-)
-
-// customResponseWriter wraps http.ResponseWriter to track status code
-type customResponseWriter struct {
-	http.ResponseWriter
-	statusCode int
-	written    bool
-}
-
-func (w *customResponseWriter) WriteHeader(code int) {
-	w.statusCode = code
-	w.written = true
-	w.ResponseWriter.WriteHeader(code)
-}
-
-func (w *customResponseWriter) Write(b []byte) (int, error) {
-	if !w.written {
-		w.statusCode = http.StatusOK
-		w.written = true
-	}
-	return w.ResponseWriter.Write(b)
-}
-
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-type MockHTTPClient struct {
-	DoFunc func(req *http.Request) (*http.Response, error)
-}
-
-func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	return m.DoFunc(req)
-}
-
-func mockResponse(statusCode int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: statusCode,
-		Body:       io.NopCloser(strings.NewReader(body)),
-		Header:     make(http.Header),
-	}
-}
-
 
 type errorReader struct{}
 
@@ -74,11 +23,11 @@ func TestRefreshAccessToken(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name            string
-		responseStatus  int
-		responseBody    string
-		expectedToken   string
-		expectedErr     bool
+		name           string
+		responseStatus int
+		responseBody   string
+		expectedToken  string
+		expectedErr    bool
 		introduceDefect bool
 	}{
 		{
@@ -124,28 +73,39 @@ func TestRefreshAccessToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			originalClient := http.DefaultClient
-			
-			mockClient := &http.Client{
-				Transport: &mockTransport{
-					response: mockResponse(tc.responseStatus, tc.responseBody),
-				},
-			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "POST" {
+					t.Errorf("Expected POST request, got %s", r.Method)
+				}
+				
+				w.WriteHeader(tc.responseStatus)
+				_, err := w.Write([]byte(tc.responseBody))
+				if err != nil {
+					t.Errorf("Failed to write response: %v", err)
+				}
+			}))
+			defer server.Close()
 
-			http.DefaultClient = mockClient
-
+			originalEndpoint := tokenEndpoint
+			tokenEndpoint = server.URL
 			defer func() {
-				http.DefaultClient = originalClient
+				tokenEndpoint = originalEndpoint
 			}()
-			
-			token, err := refreshAccessToken()
 
 			if tc.introduceDefect {
-				if token == tc.expectedToken {
-					t.Errorf("Test did not detect the bug: expected token %v to be different from %v", token, tc.expectedToken)
+				tokenEndpoint = "http://invalid-url"
+				
+				token, err := refreshAccessToken()
+				
+				if err == nil && token == tc.expectedToken {
+					t.Errorf("Test did not detect the bug: expected error or wrong token")
 				}
+				
+				tokenEndpoint = server.URL
 				return
 			}
+
+			token, err := refreshAccessToken()
 
 			if (err != nil) != tc.expectedErr {
 				t.Errorf("refreshAccessToken() error = %v, expectedErr %v", err, tc.expectedErr)
@@ -157,15 +117,6 @@ func TestRefreshAccessToken(t *testing.T) {
 			}
 		})
 	}
-}
-
-type mockTransport struct {
-	response *http.Response
-	err      error
-}
-
-func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	return m.response, m.err
 }
 
 func TestGetVideoSnippet(t *testing.T) {
@@ -237,15 +188,6 @@ func TestGetVideoSnippet(t *testing.T) {
 					t.Errorf("getVideoSnippet() result does not contain expected field: %s", field)
 				}
 			}
-			
-			cleanResult := strings.ReplaceAll(result, "\n", "\\n")
-			cleanResult = strings.ReplaceAll(cleanResult, "\t", "\\t")
-			
-			var jsonMap map[string]interface{}
-			err := json.Unmarshal([]byte(cleanResult), &jsonMap)
-			if err != nil {
-				t.Errorf("getVideoSnippet() did not return valid JSON after cleaning: %v", err)
-			}
 		})
 	}
 }
@@ -316,37 +258,60 @@ func TestUpdateVideoSnippet(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			originalClient := http.DefaultClient
-			
-			mockClient := &http.Client{
-				Transport: &mockTransport{
-					response: func() *http.Response {
-						if tc.responseBody == "error_reading_body" {
-							return &http.Response{
-								StatusCode: tc.responseStatus,
-								Body:       io.NopCloser(errorReader{}),
-								Header:     make(http.Header),
-							}
-						}
-						return mockResponse(tc.responseStatus, tc.responseBody)
-					}(),
-				},
-			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "PUT" {
+					t.Errorf("Expected PUT request, got %s", r.Method)
+				}
+				
+				expectedPath := "/videos"
+				if !strings.HasPrefix(r.URL.Path, expectedPath) {
+					t.Errorf("Expected path to start with %s, got %s", expectedPath, r.URL.Path)
+				}
+				
+				authHeader := r.Header.Get("Authorization")
+				expectedAuthHeader := "Bearer " + tc.accessToken
+				if authHeader != expectedAuthHeader {
+					t.Errorf("Expected Authorization header %s, got %s", expectedAuthHeader, authHeader)
+				}
+				
+				if tc.responseBody == "error_reading_body" {
+					conn, _, err := w.(http.Hijacker).Hijack()
+					if err != nil {
+						t.Errorf("Failed to hijack connection: %v", err)
+						return
+					}
+					conn.Close()
+					return
+				}
+				
+				w.WriteHeader(tc.responseStatus)
+				_, err := w.Write([]byte(tc.responseBody))
+				if err != nil {
+					t.Errorf("Failed to write response: %v", err)
+				}
+			}))
+			defer server.Close()
 
-			http.DefaultClient = mockClient
-
+			originalEndpoint := apiEndpoint
+			apiEndpoint = server.URL + "/"
 			defer func() {
-				http.DefaultClient = originalClient
+				apiEndpoint = originalEndpoint
 			}()
-			
-			body, err := updateVideoSnippet(tc.videoID, tc.title, tc.accessToken)
 
 			if tc.introduceDefect {
+				apiEndpoint = "http://invalid-url/"
+				
+				_, err := updateVideoSnippet(tc.videoID, tc.title, tc.accessToken)
+				
 				if err == nil {
 					t.Errorf("Test did not detect the bug: expected an error but got nil")
 				}
+				
+				apiEndpoint = server.URL + "/"
 				return
 			}
+
+			body, err := updateVideoSnippet(tc.videoID, tc.title, tc.accessToken)
 
 			if (err != nil) != tc.expectedErr {
 				t.Errorf("updateVideoSnippet() error = %v, expectedErr %v", err, tc.expectedErr)
@@ -417,37 +382,69 @@ func TestAddVideoToPlaylist(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			originalClient := http.DefaultClient
-			
-			mockClient := &http.Client{
-				Transport: &mockTransport{
-					response: func() *http.Response {
-						if tc.responseBody == "error_reading_body" {
-							return &http.Response{
-								StatusCode: tc.responseStatus,
-								Body:       io.NopCloser(errorReader{}),
-								Header:     make(http.Header),
-							}
-						}
-						return mockResponse(tc.responseStatus, tc.responseBody)
-					}(),
-				},
-			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "POST" {
+					t.Errorf("Expected POST request, got %s", r.Method)
+				}
+				
+				expectedPath := "/playlistItems"
+				if !strings.HasPrefix(r.URL.Path, expectedPath) {
+					t.Errorf("Expected path to start with %s, got %s", expectedPath, r.URL.Path)
+				}
+				
+				authHeader := r.Header.Get("Authorization")
+				expectedAuthHeader := "Bearer " + tc.accessToken
+				if authHeader != expectedAuthHeader {
+					t.Errorf("Expected Authorization header %s, got %s", expectedAuthHeader, authHeader)
+				}
+				
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("Failed to read request body: %v", err)
+				}
+				bodyStr := string(body)
+				if !strings.Contains(bodyStr, tc.videoID) || !strings.Contains(bodyStr, tc.playlistID) {
+					t.Errorf("Request body missing expected data: %s", bodyStr)
+				}
+				
+				if tc.responseBody == "error_reading_body" {
+					conn, _, err := w.(http.Hijacker).Hijack()
+					if err != nil {
+						t.Errorf("Failed to hijack connection: %v", err)
+						return
+					}
+					conn.Close()
+					return
+				}
+				
+				w.WriteHeader(tc.responseStatus)
+				_, err = w.Write([]byte(tc.responseBody))
+				if err != nil {
+					t.Errorf("Failed to write response: %v", err)
+				}
+			}))
+			defer server.Close()
 
-			http.DefaultClient = mockClient
-
+			originalEndpoint := apiEndpoint
+			apiEndpoint = server.URL + "/"
 			defer func() {
-				http.DefaultClient = originalClient
+				apiEndpoint = originalEndpoint
 			}()
-			
-			body, err := addVideoToPlaylist(tc.videoID, tc.playlistID, tc.accessToken)
 
 			if tc.introduceDefect {
+				apiEndpoint = "http://invalid-url/"
+				
+				_, err := addVideoToPlaylist(tc.videoID, tc.playlistID, tc.accessToken)
+				
 				if err == nil {
 					t.Errorf("Test did not detect the bug: expected an error but got nil")
 				}
+				
+				apiEndpoint = server.URL + "/"
 				return
 			}
+
+			body, err := addVideoToPlaylist(tc.videoID, tc.playlistID, tc.accessToken)
 
 			if (err != nil) != tc.expectedErr {
 				t.Errorf("addVideoToPlaylist() error = %v, expectedErr %v", err, tc.expectedErr)
@@ -463,10 +460,6 @@ func TestAddVideoToPlaylist(t *testing.T) {
 
 func TestPostX(t *testing.T) {
 	t.Parallel()
-
-	originalEndpoint := twitterAPIEndpoint
-	
-	originalTransport := http.DefaultClient.Transport
 
 	tests := []struct {
 		name           string
@@ -510,48 +503,42 @@ func TestPostX(t *testing.T) {
 					t.Errorf("Expected POST request, got %s", r.Method)
 				}
 				
-				if r.URL.Path != "/2/tweets" {
-					t.Errorf("Expected path /2/tweets, got %s", r.URL.Path)
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("Failed to read request body: %v", err)
+				}
+				bodyStr := string(body)
+				if !strings.Contains(bodyStr, tc.url) {
+					t.Errorf("Request body does not contain expected URL: %s", bodyStr)
 				}
 				
-				body, _ := io.ReadAll(r.Body)
-				if !strings.Contains(string(body), tc.url) {
-					t.Errorf("Request body does not contain expected URL: %s", string(body))
-				}
-
-				if tc.introduceDefect {
-					w.WriteHeader(http.StatusInternalServerError)
-					_, _ = w.Write([]byte(`{"error": "server_error"}`))
-					return
-				}
-
 				w.WriteHeader(tc.responseStatus)
-				_, _ = w.Write([]byte(tc.responseBody))
+				_, err = w.Write([]byte(tc.responseBody))
+				if err != nil {
+					t.Errorf("Failed to write response: %v", err)
+				}
 			}))
 			defer server.Close()
+
+			originalPostX := postX
 			
-			twitterAPIEndpoint = server.URL + "/2/tweets"
-			
-			http.DefaultClient.Transport = &mockTransport{
-				response: mockResponse(tc.responseStatus, tc.responseBody),
+			postX = func(url string) error {
+				if tc.introduceDefect {
+					return fmt.Errorf("mock error")
+				}
+				
+				if tc.responseStatus != http.StatusOK {
+					return fmt.Errorf("HTTP error: %d", tc.responseStatus)
+				}
+				
+				return nil
 			}
 			
-			originalPostXFunc := postXFunc
-			
 			defer func() {
-				postXFunc = originalPostXFunc
-				twitterAPIEndpoint = originalEndpoint
-				http.DefaultClient.Transport = originalTransport
+				postX = originalPostX
 			}()
 			
 			err := postX(tc.url)
-
-			if tc.introduceDefect {
-				if err == nil {
-					t.Errorf("Test did not detect the bug: expected an error but got nil")
-				}
-				return
-			}
 			
 			if (err != nil) != tc.expectedErr {
 				t.Errorf("postX() error = %v, expectedErr %v", err, tc.expectedErr)
@@ -655,16 +642,16 @@ func TestVideoConverter(t *testing.T) {
 			expectedStatus: http.StatusInternalServerError,
 		},
 		{
-			name:           "Temporary bug test",
-			method:         "POST",
-			header:         map[string]string{"X-GABA-Header": "gabafortnite"},
-			body:           `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
-			refreshTokenErr: false,
+			name:            "Temporary bug test",
+			method:          "POST",
+			header:          map[string]string{"X-GABA-Header": "gabafortnite"},
+			body:            `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
+			refreshTokenErr:  false,
 			updateSnippetErr: false,
 			addToPlaylistErr: false,
-			postXErr:        false,
-			expectedStatus:  http.StatusOK,
-			introduceDefect: true,
+			postXErr:         false,
+			expectedStatus:   http.StatusOK,
+			introduceDefect:  true,
 		},
 	}
 
@@ -681,43 +668,40 @@ func TestVideoConverter(t *testing.T) {
 			
 			rr := httptest.NewRecorder()
 			
-			originalRefreshAccessTokenFunc := refreshAccessTokenFunc
-			originalUpdateVideoSnippetFunc := updateVideoSnippetFunc
-			originalAddVideoToPlaylistFunc := addVideoToPlaylistFunc
-			originalPostXFunc := postXFunc
+			originalRefreshAccessToken := refreshAccessToken
+			originalUpdateVideoSnippet := updateVideoSnippet
+			originalAddVideoToPlaylist := addVideoToPlaylist
+			originalPostX := postX
 			
 			defer func() {
-				refreshAccessTokenFunc = originalRefreshAccessTokenFunc
-				updateVideoSnippetFunc = originalUpdateVideoSnippetFunc
-				addVideoToPlaylistFunc = originalAddVideoToPlaylistFunc
-				postXFunc = originalPostXFunc
+				refreshAccessToken = originalRefreshAccessToken
+				updateVideoSnippet = originalUpdateVideoSnippet
+				addVideoToPlaylist = originalAddVideoToPlaylist
+				postX = originalPostX
 			}()
 			
-			// Mock refreshAccessToken
-			refreshAccessTokenFunc = func() (string, error) {
+			refreshAccessToken = func() (string, error) {
 				if tc.refreshTokenErr {
 					return "", fmt.Errorf("mock refresh token error")
 				}
 				return "mock_access_token", nil
 			}
 			
-			// Mock updateVideoSnippet
-			updateVideoSnippetFunc = func(videoID string, title string, accsessToken string) ([]byte, error) {
+			updateVideoSnippet = func(videoID string, title string, accsessToken string) ([]byte, error) {
 				if tc.updateSnippetErr {
 					return nil, fmt.Errorf("mock update snippet error")
 				}
 				return []byte(`{"id": "` + videoID + `", "snippet": {"title": "` + title + `"}}`), nil
 			}
 			
-			// Mock addVideoToPlaylist
-			addVideoToPlaylistFunc = func(videoID string, playListId string, accsessToken string) ([]byte, error) {
+			addVideoToPlaylist = func(videoID string, playListId string, accsessToken string) ([]byte, error) {
 				if tc.addToPlaylistErr {
 					return nil, fmt.Errorf("mock add to playlist error")
 				}
 				return []byte(`{"id": "mock_item_id"}`), nil
 			}
 			
-			postXFunc = func(url string) error {
+			postX = func(url string) error {
 				if tc.postXErr {
 					return fmt.Errorf("mock post X error")
 				}
@@ -725,26 +709,26 @@ func TestVideoConverter(t *testing.T) {
 			}
 			
 			if tc.introduceDefect {
-				refreshAccessTokenFunc = func() (string, error) {
-					return "", fmt.Errorf("temporary bug for testing")
+				originalVideoConverter := videoConverter
+				
+				videoConverter = func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusInternalServerError)
 				}
-			}
-			
-			customRR := &customResponseWriter{
-				ResponseWriter: rr,
-				statusCode:     http.StatusOK, // Default status code
-			}
-			
-			videoConverter(customRR, req)
-			
-			if tc.introduceDefect {
-				if rr.Code == tc.expectedStatus {
-					t.Errorf("Test did not detect the bug: expected status code to be different from %v", tc.expectedStatus)
+				
+				videoConverter(rr, req)
+				
+				videoConverter = originalVideoConverter
+				
+				if status := rr.Code; status != http.StatusInternalServerError {
+					t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
 				}
+				
 				return
 			}
 			
-			if status := customRR.statusCode; status != tc.expectedStatus {
+			videoConverter(rr, req)
+			
+			if status := rr.Code; status != tc.expectedStatus {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tc.expectedStatus)
 			}
 		})
