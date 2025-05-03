@@ -43,6 +43,10 @@ jobs:
       - name: test blog-post 
         working-directory: src/blog-post
         run: go test -v -cover ./...
+        
+      - name: test video-converter
+        working-directory: src/video-converter
+        run: go test -v -parallel 4 -cover ./...
 
         # deploy:
   #   name: deploy

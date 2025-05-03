@@ -47,7 +47,10 @@ func init() {
 
 func refreshAccessToken() (string, error) {
 	requestBody := fmt.Sprintf("client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token", clientID, clientSecret, refreshToken)
-	req, _ := http.NewRequest("POST", tokenEndpoint, bytes.NewBuffer([]byte(requestBody)))
+	req, err := http.NewRequest("POST", tokenEndpoint, bytes.NewBuffer([]byte(requestBody)))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{}
@@ -121,7 +124,10 @@ func updateVideoSnippet(videoID string, title string, accsessToken string) ([]by
 	url := apiEndpoint + "videos?part=snippet"
 	requestBody := getVideoSnippet(videoID, title)
 
-	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Add("Authorization", "Bearer "+accsessToken)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -156,7 +162,10 @@ func addVideoToPlaylist(videoID string, playListId string, accsessToken string) 
 	url := apiEndpoint + "playlistItems?part=snippet"
 	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoID)
 
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(requestBody)))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(requestBody)))
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Add("Authorization", "Bearer "+accsessToken)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -222,8 +231,7 @@ func postX(url string) error {
 	// POSTリクエストを作成
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
-		fmt.Println("リクエスト作成エラー:", err)
-		return err
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
