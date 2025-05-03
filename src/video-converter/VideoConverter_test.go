@@ -18,6 +18,17 @@ var (
 	twitterAPIEndpoint     = "https://api.twitter.com/2/tweets"
 )
 
+// customResponseWriter wraps http.ResponseWriter to track status code
+type customResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *customResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -702,16 +713,9 @@ func TestVideoConverter(t *testing.T) {
 				}
 			}
 			
-			type customResponseWriter struct {
-				http.ResponseWriter
-				statusCode int
-			}
-			
-			customRR := &customResponseWriter{ResponseWriter: rr}
-			
-			customRR.WriteHeader = func(code int) {
-				customRR.statusCode = code
-				rr.WriteHeader(code)
+			customRR := &customResponseWriter{
+				ResponseWriter: rr,
+				statusCode:     http.StatusOK, // Default status code
 			}
 			
 			videoConverter(customRR, req)
