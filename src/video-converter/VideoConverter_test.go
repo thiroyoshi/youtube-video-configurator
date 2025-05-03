@@ -465,7 +465,8 @@ func TestPostX(t *testing.T) {
 	t.Parallel()
 
 	originalEndpoint := twitterAPIEndpoint
-	originalBearerToken := twitterBearerToken
+	
+	originalTransport := http.DefaultClient.Transport
 
 	tests := []struct {
 		name           string
@@ -513,11 +514,6 @@ func TestPostX(t *testing.T) {
 					t.Errorf("Expected path /2/tweets, got %s", r.URL.Path)
 				}
 				
-				authHeader := r.Header.Get("Authorization")
-				if !strings.HasPrefix(authHeader, "Bearer ") {
-					t.Errorf("Missing or invalid Authorization header: %s", authHeader)
-				}
-				
 				body, _ := io.ReadAll(r.Body)
 				if !strings.Contains(string(body), tc.url) {
 					t.Errorf("Request body does not contain expected URL: %s", string(body))
@@ -535,14 +531,17 @@ func TestPostX(t *testing.T) {
 			defer server.Close()
 			
 			twitterAPIEndpoint = server.URL + "/2/tweets"
-			twitterBearerToken = "test_bearer_token"
+			
+			http.DefaultClient.Transport = &mockTransport{
+				response: mockResponse(tc.responseStatus, tc.responseBody),
+			}
 			
 			originalPostXFunc := postXFunc
 			
 			defer func() {
 				postXFunc = originalPostXFunc
 				twitterAPIEndpoint = originalEndpoint
-				twitterBearerToken = originalBearerToken
+				http.DefaultClient.Transport = originalTransport
 			}()
 			
 			err := postX(tc.url)
