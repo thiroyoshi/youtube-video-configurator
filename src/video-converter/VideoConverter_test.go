@@ -15,6 +15,7 @@ var (
 	updateVideoSnippetFunc = updateVideoSnippet
 	addVideoToPlaylistFunc = addVideoToPlaylist
 	postXFunc              = postX
+	twitterAPIEndpoint     = "https://api.twitter.com/2/tweets"
 )
 
 type HTTPClient interface {
@@ -439,6 +440,8 @@ func TestAddVideoToPlaylist(t *testing.T) {
 func TestPostX(t *testing.T) {
 	t.Parallel()
 
+	originalEndpoint := twitterAPIEndpoint
+
 	tests := []struct {
 		name           string
 		url            string
@@ -501,7 +504,19 @@ func TestPostX(t *testing.T) {
 			}))
 			defer server.Close()
 			
-			err := postX(tc.url)
+			twitterAPIEndpoint = server.URL
+			
+			originalPostXFunc := postXFunc
+			defer func() {
+				postXFunc = originalPostXFunc
+				twitterAPIEndpoint = originalEndpoint
+			}()
+			
+			postXFunc = func(url string) error {
+				return postX(url)
+			}
+			
+			err := postXFunc(tc.url)
 
 			if tc.introduceDefect {
 				if err == nil {
@@ -650,6 +665,7 @@ func TestVideoConverter(t *testing.T) {
 				postXFunc = originalPostXFunc
 			}()
 			
+			// Mock refreshAccessToken
 			refreshAccessTokenFunc = func() (string, error) {
 				if tc.refreshTokenErr {
 					return "", fmt.Errorf("mock refresh token error")
@@ -657,6 +673,7 @@ func TestVideoConverter(t *testing.T) {
 				return "mock_access_token", nil
 			}
 			
+			// Mock updateVideoSnippet
 			updateVideoSnippetFunc = func(videoID string, title string, accsessToken string) ([]byte, error) {
 				if tc.updateSnippetErr {
 					return nil, fmt.Errorf("mock update snippet error")
@@ -664,6 +681,7 @@ func TestVideoConverter(t *testing.T) {
 				return []byte(`{"id": "` + videoID + `", "snippet": {"title": "` + title + `"}}`), nil
 			}
 			
+			// Mock addVideoToPlaylist
 			addVideoToPlaylistFunc = func(videoID string, playListId string, accsessToken string) ([]byte, error) {
 				if tc.addToPlaylistErr {
 					return nil, fmt.Errorf("mock add to playlist error")
@@ -684,7 +702,19 @@ func TestVideoConverter(t *testing.T) {
 				}
 			}
 			
-			videoConverter(rr, req)
+			type customResponseWriter struct {
+				http.ResponseWriter
+				statusCode int
+			}
+			
+			customRR := &customResponseWriter{ResponseWriter: rr}
+			
+			customRR.WriteHeader = func(code int) {
+				customRR.statusCode = code
+				rr.WriteHeader(code)
+			}
+			
+			videoConverter(customRR, req)
 			
 			if tc.introduceDefect {
 				if rr.Code == tc.expectedStatus {
@@ -693,7 +723,7 @@ func TestVideoConverter(t *testing.T) {
 				return
 			}
 			
-			if status := rr.Code; status != tc.expectedStatus {
+			if status := customRR.statusCode; status != tc.expectedStatus {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tc.expectedStatus)
 			}
 		})
