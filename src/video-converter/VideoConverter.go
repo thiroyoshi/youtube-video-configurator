@@ -1,4 +1,5 @@
-package videoConverter
+// Package videoconverter は、YouTube動画の設定を管理するためのCloud Functionsパッケージです。
+package videoconverter
 
 import (
 	"bytes"
@@ -8,29 +9,32 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	// "time"
+	"time"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"github.com/dghubble/oauth1"
 )
 
 const (
-	TOKEN_ENDPOINT             = "https://accounts.google.com/o/oauth2/token"
-	CLIENT_ID                  = "589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com"
-	CLIENT_SECRET              = "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"
-	REFRESH_TOKEN              = "1//0eZ6zn_HG54e-CgYIARAAGA4SNwF-L9IraHLGPq_CNydexr-Sjj0SczlZZF0M3r6A5Sp2O8Eo_1tnR7mUUeFPpRIJ2v87_8QeHEI"
-	API_ENDPOINT               = "https://www.googleapis.com/youtube/v3/"
-	YOUTUBE_READ_WRITE_SCOPE   = "https://www.googleapis.com/auth/youtube"
-	YOUTUBE_VIDEO_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
-	PLAYLIST_NORMAL            = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
-	PLAYLIST_SHORT             = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
+	tokenEndpoint           = "https://accounts.google.com/o/oauth2/token"
+	clientID                = "589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com"
+	clientSecret            = "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"
+	refreshToken            = "1//0eZ6zn_HG54e-CgYIARAAGA4SNwF-L9IraHLGPq_CNydexr-Sjj0SczlZZF0M3r6A5Sp2O8Eo_1tnR7mUUeFPpRIJ2v87_8QeHEI"
+	apiEndpoint             = "https://www.googleapis.com/youtube/v3/"
+	youtubeReadWriteScope   = "https://www.googleapis.com/auth/youtube"
+	youtubeVideoUploadScope = "https://www.googleapis.com/auth/youtube.upload"
+	playlistNormal          = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
+	playlistShort           = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
 )
 
+// FunctionsRequest はCloud Functionsへのリクエストデータを表す構造体です。
 type FunctionsRequest struct {
-	Url         string `json:"url"`
+	URL         string `json:"url"`
 	Title       string `json:"title"`
 	PublishedAt string `json:"published_at"`
 }
 
+// RefreshResponse はOAuthトークンのリフレッシュレスポンスを表す構造体です。
 type RefreshResponse struct {
 	AccessToken string `json:"access_token"`
 	Expires     int    `json:"expires_in"`
@@ -42,18 +46,23 @@ func init() {
 }
 
 func refreshAccessToken() (string, error) {
-	requestBody := fmt.Sprintf("client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token", CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN)
-	req, _ := http.NewRequest("POST", TOKEN_ENDPOINT, bytes.NewBuffer([]byte(requestBody)))
+	requestBody := fmt.Sprintf("client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token", clientID, clientSecret, refreshToken)
+	req, _ := http.NewRequest("POST", tokenEndpoint, bytes.NewBuffer([]byte(requestBody)))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	slog.Info("refreshAccessToken response Status:", resp.Status)
+	slog.Info("refreshAccessToken response", "status", resp.Status)
 	if err != nil {
 		return "", err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -69,8 +78,8 @@ func refreshAccessToken() (string, error) {
 	return data.AccessToken, nil
 }
 
-func getVideoSnippet(videoId string, videoTitle string) string {
-	videoDescription := fmt.Sprintf(`
+func getVideoSnippet(videoID string, videoTitle string) string {
+	videoDescription := `
 	 GABAのFORTNITEプレイログです。
 	よかったら高評価とチャンネル登録お願いします！一緒にフォートナイトを盛り上げましょう！
 	
@@ -84,10 +93,10 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 	▼ X（旧Twitter）やってます！フォローお願いします！フォトナのアカウントなら１００％フォロバします！
 	https://twitter.com/GABA_FORTNITE
 
-	#FORTNITE #フォートナイト #PS5share
-	`)
+	#FORTNITE #フォートナイト #PS5share #gameplay
+	`
 
-	categoryId := "20"
+	categoryID := "20"
 
 	requestBody := fmt.Sprintf(
 		`{
@@ -96,21 +105,21 @@ func getVideoSnippet(videoId string, videoTitle string) string {
 				"title": "%s",
 				"description": "%s",
 				"categoryId": "%s",
-				"tags": ["Fortnite", "フォートナイト"]
+				"tags": ["Fortnite", "フォートナイト", "gameplay", "プレイ動画"]
 			}
 		}`,
-		videoId,
+		videoID,
 		videoTitle,
 		videoDescription,
-		categoryId,
+		categoryID,
 	)
 
 	return requestBody
 }
 
-func updateVideoSnippet(videoId string, title string, accsessToken string) ([]byte, error) {
-	url := API_ENDPOINT + "videos?part=snippet"
-	requestBody := getVideoSnippet(videoId, title)
+func updateVideoSnippet(videoID string, title string, accsessToken string) ([]byte, error) {
+	url := apiEndpoint + "videos?part=snippet"
+	requestBody := getVideoSnippet(videoID, title)
 
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
 	req.Header.Add("Authorization", "Bearer "+accsessToken)
@@ -122,7 +131,11 @@ func updateVideoSnippet(videoId string, title string, accsessToken string) ([]by
 		slog.Error("failed to request to update snippet", "error", err)
 		return []byte{}, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
 
 	if resp.StatusCode != 200 {
 		slog.Error("failed to update snippet", "resp.Status", resp.Status)
@@ -139,9 +152,9 @@ func updateVideoSnippet(videoId string, title string, accsessToken string) ([]by
 	return body, nil
 }
 
-func addVideoToPlaylist(videoId string, playListId string, accsessToken string) ([]byte, error) {
-	url := API_ENDPOINT + "playlistItems?part=snippet"
-	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoId)
+func addVideoToPlaylist(videoID string, playListId string, accsessToken string) ([]byte, error) {
+	url := apiEndpoint + "playlistItems?part=snippet"
+	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoID)
 
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(requestBody)))
 	req.Header.Add("Authorization", "Bearer "+accsessToken)
@@ -152,7 +165,11 @@ func addVideoToPlaylist(videoId string, playListId string, accsessToken string) 
 	if err != nil {
 		return []byte{}, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
 	fmt.Println("add video to playlist response Status:", resp.Status)
 
 	body, err := io.ReadAll(resp.Body)
@@ -162,6 +179,79 @@ func addVideoToPlaylist(videoId string, playListId string, accsessToken string) 
 	fmt.Println(string(body))
 
 	return body, nil
+}
+
+func postX(url string) error {
+	// APIキーとアクセストークンを設定
+	apiKey := "vR8oo1pAQFgeYKlfxIPSrgRq6"
+	apiSecretKey := "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
+	accessToken := "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
+	accessTokenSecret := "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
+
+	// OAuth1 認証設定
+	config := oauth1.NewConfig(apiKey, apiSecretKey)
+	token := oauth1.NewToken(accessToken, accessTokenSecret)
+	httpClient := config.Client(oauth1.NoContext, token)
+
+	// APIエンドポイントURL
+	endpoint := "https://api.twitter.com/2/tweets"
+
+	// Data structure for the Tweet
+	type Tweet struct {
+		Text string `json:"text"`
+	}
+
+	template := `
+	プレイ動画をYouTubeにアップロードしました！
+	ぜひ見てください！気に入ったら高評価とチャンネル登録もお願いします！
+	一緒にフォートナイトを盛り上げましょう！
+	%s
+	
+	#Fortnite #gameplay #フォートナイト #プレイ動画 #YouTube
+	`
+
+	tweet := Tweet{Text: fmt.Sprintf(template, url)}
+
+	// Marshal the Tweet struct to JSON
+	jsonData, err := json.Marshal(tweet)
+	if err != nil {
+		fmt.Println("JSONマーシャルエラー:", err)
+		return err
+	}
+
+	// POSTリクエストを作成
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Println("リクエスト作成エラー:", err)
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	// リクエストを送信
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		fmt.Println("リクエスト送信エラー:", err)
+		return err
+	}
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
+
+	// レスポンスを読み取る
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("レスポンス読み取りエラー:", err)
+		return err
+	}
+
+	// 結果を表示
+	fmt.Println("レスポンスステータス:", resp.Status)
+	fmt.Println("レスポンスボディ:", string(body))
+
+	return nil
 }
 
 // videoConverter is an HTTP Cloud Function.
@@ -189,7 +279,11 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 
 	// Get RequestData
 	body, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
+	defer func() {
+		if cerr := r.Body.Close(); cerr != nil {
+			slog.Error("failed to close request body", "error", cerr)
+		}
+	}()
 	if err != nil {
 		fmt.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -208,44 +302,65 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("data:", data)
 
 	// Get videoId
-	dataStrings := strings.Split(data.Url, "?v=")
+	dataStrings := strings.Split(data.URL, "?v=")
 	if len(dataStrings) != 2 {
-		fmt.Println("invalid url:", data.Url)
+		fmt.Println("invalid url:", data.URL)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	videoId := dataStrings[1]
+	videoID := dataStrings[1]
 
 	// Get Time Object of JST
-	// jst, err := time.LoadLocation("Asia/Tokyo")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// now := time.Now().In(jst)
+	jst, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		panic(err)
+	}
+	now := time.Now().In(jst)
 
 	// Set video title and playlistId
-	title := "GABAのプレイログ #Fortnite #フォートナイト"
-	playlistId := PLAYLIST_NORMAL
+	title := fmt.Sprintf("GABAのプレイログ %s #Fortnite #gameplay #フォートナイト #プレイ動画 #ps5", now.Format("2006-01-02 15:04:05"))
+	playlistID := playlistNormal
 
 	// Update video snippet
-	resp, err := updateVideoSnippet(videoId, title, accsessToken)
+	resp, err := updateVideoSnippet(videoID, title, accsessToken)
 	if err != nil {
-		fmt.Fprint(w, err)
 		w.WriteHeader(http.StatusInternalServerError)
+		if _, werr := fmt.Fprint(w, err); werr != nil {
+			slog.Error("failed to write error response", "error", werr)
+		}
 		return
 	}
 
 	// Add video to playlist
-	_, err = addVideoToPlaylist(videoId, playlistId, accsessToken)
+	_, err = addVideoToPlaylist(videoID, playlistID, accsessToken)
 	if err != nil {
-		fmt.Fprint(w, err)
+		slog.Error("failed to add video to playlist", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		if _, werr := fmt.Fprint(w, err); werr != nil {
+			slog.Error("failed to write error response", "error", werr)
+		}
 		return
 	}
 
-	// Write Reponse
+	// Post to X
+	err = postX(data.URL)
+	if err != nil {
+		slog.Error("failed to post to X", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		if _, werr := fmt.Fprint(w, err); werr != nil {
+			slog.Error("failed to write error response", "error", werr)
+		}
+		return
+	}
+
+	// Write Response
 	if _, err = w.Write(resp); err != nil {
-		fmt.Fprint(w, err)
+		slog.Error("failed to write response", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		if _, werr := fmt.Fprint(w, err); werr != nil {
+			slog.Error("failed to write error response", "error", werr)
+		}
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
