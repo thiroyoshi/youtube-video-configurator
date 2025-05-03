@@ -12,6 +12,13 @@ import (
 	"time"
 )
 
+var (
+	refreshAccessTokenFunc = refreshAccessToken
+	updateVideoSnippetFunc = updateVideoSnippet
+	addVideoToPlaylistFunc = addVideoToPlaylist
+	postXFunc              = postX
+)
+
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -106,8 +113,6 @@ func TestRefreshAccessToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			originalRefreshAccessToken := refreshAccessToken
-
 			originalClient := http.DefaultClient
 			
 			mockClient := &http.Client{
@@ -122,7 +127,7 @@ func TestRefreshAccessToken(t *testing.T) {
 				http.DefaultClient = originalClient
 			}()
 			
-			token, err := originalRefreshAccessToken()
+			token, err := refreshAccessToken()
 
 			if tc.introduceDefect {
 				if token == tc.expectedToken {
@@ -506,13 +511,13 @@ func TestPostX(t *testing.T) {
 				w.Write([]byte(tc.responseBody))
 			}))
 			defer server.Close()
-
-			originalEndpoint := "https://api.twitter.com/2/tweets"
-			
 			
 			err := postX(tc.url)
 
 			if tc.introduceDefect {
+				if err == nil {
+					t.Errorf("Test did not detect the bug: expected an error but got nil")
+				}
 				return
 			}
 			
@@ -644,40 +649,40 @@ func TestVideoConverter(t *testing.T) {
 			
 			rr := httptest.NewRecorder()
 			
-			originalRefreshAccessToken := refreshAccessToken
-			originalUpdateVideoSnippet := updateVideoSnippet
-			originalAddVideoToPlaylist := addVideoToPlaylist
-			originalPostX := postX
+			originalRefreshAccessTokenFunc := refreshAccessTokenFunc
+			originalUpdateVideoSnippetFunc := updateVideoSnippetFunc
+			originalAddVideoToPlaylistFunc := addVideoToPlaylistFunc
+			originalPostXFunc := postXFunc
 			
 			defer func() {
-				refreshAccessToken = originalRefreshAccessToken
-				updateVideoSnippet = originalUpdateVideoSnippet
-				addVideoToPlaylist = originalAddVideoToPlaylist
-				postX = originalPostX
+				refreshAccessTokenFunc = originalRefreshAccessTokenFunc
+				updateVideoSnippetFunc = originalUpdateVideoSnippetFunc
+				addVideoToPlaylistFunc = originalAddVideoToPlaylistFunc
+				postXFunc = originalPostXFunc
 			}()
 			
-			refreshAccessToken = func() (string, error) {
+			refreshAccessTokenFunc = func() (string, error) {
 				if tc.refreshTokenErr {
 					return "", fmt.Errorf("mock refresh token error")
 				}
 				return "mock_access_token", nil
 			}
 			
-			updateVideoSnippet = func(videoID string, title string, accsessToken string) ([]byte, error) {
+			updateVideoSnippetFunc = func(videoID string, title string, accsessToken string) ([]byte, error) {
 				if tc.updateSnippetErr {
 					return nil, fmt.Errorf("mock update snippet error")
 				}
 				return []byte(`{"id": "` + videoID + `", "snippet": {"title": "` + title + `"}}`), nil
 			}
 			
-			addVideoToPlaylist = func(videoID string, playListId string, accsessToken string) ([]byte, error) {
+			addVideoToPlaylistFunc = func(videoID string, playListId string, accsessToken string) ([]byte, error) {
 				if tc.addToPlaylistErr {
 					return nil, fmt.Errorf("mock add to playlist error")
 				}
 				return []byte(`{"id": "mock_item_id"}`), nil
 			}
 			
-			postX = func(url string) error {
+			postXFunc = func(url string) error {
 				if tc.postXErr {
 					return fmt.Errorf("mock post X error")
 				}
@@ -685,7 +690,7 @@ func TestVideoConverter(t *testing.T) {
 			}
 			
 			if tc.introduceDefect {
-				refreshAccessToken = func() (string, error) {
+				refreshAccessTokenFunc = func() (string, error) {
 					return "", fmt.Errorf("temporary bug for testing")
 				}
 			}
