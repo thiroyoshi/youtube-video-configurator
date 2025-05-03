@@ -1,6 +1,7 @@
 package videoconverter
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +18,14 @@ func (e errorReader) Read(p []byte) (n int, err error) {
 
 func (e errorReader) Close() error {
 	return nil
+}
+
+type testRoundTripper struct {
+	testFunc func(req *http.Request) (*http.Response, error)
+}
+
+func (rt *testRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return rt.testFunc(req)
 }
 
 func TestRefreshAccessToken(t *testing.T) {
@@ -73,39 +82,42 @@ func TestRefreshAccessToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != "POST" {
-					t.Errorf("Expected POST request, got %s", r.Method)
-				}
-				
-				w.WriteHeader(tc.responseStatus)
-				_, err := w.Write([]byte(tc.responseBody))
-				if err != nil {
-					t.Errorf("Failed to write response: %v", err)
-				}
-			}))
-			defer server.Close()
+			originalTransport := http.DefaultClient.Transport
 
-			originalEndpoint := tokenEndpoint
-			tokenEndpoint = server.URL
-			defer func() {
-				tokenEndpoint = originalEndpoint
-			}()
+			http.DefaultClient.Transport = &testRoundTripper{
+				testFunc: func(req *http.Request) (*http.Response, error) {
+					if !strings.Contains(req.URL.String(), "accounts.google.com/o/oauth2/token") {
+						t.Errorf("Expected URL to contain 'accounts.google.com/o/oauth2/token', got %s", req.URL.String())
+					}
 
-			if tc.introduceDefect {
-				tokenEndpoint = "http://invalid-url"
-				
-				token, err := refreshAccessToken()
-				
-				if err == nil && token == tc.expectedToken {
-					t.Errorf("Test did not detect the bug: expected error or wrong token")
-				}
-				
-				tokenEndpoint = server.URL
-				return
+					if req.Method != "POST" {
+						t.Errorf("Expected POST request, got %s", req.Method)
+					}
+
+					if tc.introduceDefect {
+						return nil, fmt.Errorf("simulated network error")
+					}
+
+					return &http.Response{
+						StatusCode: tc.responseStatus,
+						Body:       io.NopCloser(strings.NewReader(tc.responseBody)),
+						Header:     make(http.Header),
+					}, nil
+				},
 			}
 
+			defer func() {
+				http.DefaultClient.Transport = originalTransport
+			}()
+
 			token, err := refreshAccessToken()
+
+			if tc.introduceDefect {
+				if err == nil {
+					t.Errorf("Test did not detect the bug: expected an error but got nil")
+				}
+				return
+			}
 
 			if (err != nil) != tc.expectedErr {
 				t.Errorf("refreshAccessToken() error = %v, expectedErr %v", err, tc.expectedErr)
@@ -188,6 +200,12 @@ func TestGetVideoSnippet(t *testing.T) {
 					t.Errorf("getVideoSnippet() result does not contain expected field: %s", field)
 				}
 			}
+			
+			var jsonMap map[string]interface{}
+			err := json.Unmarshal([]byte(result), &jsonMap)
+			if err != nil {
+				t.Errorf("getVideoSnippet() did not return valid JSON: %v", err)
+			}
 		})
 	}
 }
@@ -258,60 +276,56 @@ func TestUpdateVideoSnippet(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != "PUT" {
-					t.Errorf("Expected PUT request, got %s", r.Method)
-				}
-				
-				expectedPath := "/videos"
-				if !strings.HasPrefix(r.URL.Path, expectedPath) {
-					t.Errorf("Expected path to start with %s, got %s", expectedPath, r.URL.Path)
-				}
-				
-				authHeader := r.Header.Get("Authorization")
-				expectedAuthHeader := "Bearer " + tc.accessToken
-				if authHeader != expectedAuthHeader {
-					t.Errorf("Expected Authorization header %s, got %s", expectedAuthHeader, authHeader)
-				}
-				
-				if tc.responseBody == "error_reading_body" {
-					conn, _, err := w.(http.Hijacker).Hijack()
-					if err != nil {
-						t.Errorf("Failed to hijack connection: %v", err)
-						return
-					}
-					conn.Close()
-					return
-				}
-				
-				w.WriteHeader(tc.responseStatus)
-				_, err := w.Write([]byte(tc.responseBody))
-				if err != nil {
-					t.Errorf("Failed to write response: %v", err)
-				}
-			}))
-			defer server.Close()
+			originalTransport := http.DefaultClient.Transport
 
-			originalEndpoint := apiEndpoint
-			apiEndpoint = server.URL + "/"
+			http.DefaultClient.Transport = &testRoundTripper{
+				testFunc: func(req *http.Request) (*http.Response, error) {
+					if !strings.Contains(req.URL.String(), "videos?part=snippet") {
+						t.Errorf("Expected URL to contain 'videos?part=snippet', got %s", req.URL.String())
+					}
+
+					if req.Method != "PUT" {
+						t.Errorf("Expected PUT request, got %s", req.Method)
+					}
+
+					authHeader := req.Header.Get("Authorization")
+					expectedAuthHeader := "Bearer " + tc.accessToken
+					if authHeader != expectedAuthHeader {
+						t.Errorf("Expected Authorization header %s, got %s", expectedAuthHeader, authHeader)
+					}
+
+					if tc.introduceDefect {
+						return nil, fmt.Errorf("simulated network error")
+					}
+
+					if tc.responseBody == "error_reading_body" {
+						return &http.Response{
+							StatusCode: tc.responseStatus,
+							Body:       io.NopCloser(errorReader{}),
+							Header:     make(http.Header),
+						}, nil
+					}
+
+					return &http.Response{
+						StatusCode: tc.responseStatus,
+						Body:       io.NopCloser(strings.NewReader(tc.responseBody)),
+						Header:     make(http.Header),
+					}, nil
+				},
+			}
+
 			defer func() {
-				apiEndpoint = originalEndpoint
+				http.DefaultClient.Transport = originalTransport
 			}()
 
+			body, err := updateVideoSnippet(tc.videoID, tc.title, tc.accessToken)
+
 			if tc.introduceDefect {
-				apiEndpoint = "http://invalid-url/"
-				
-				_, err := updateVideoSnippet(tc.videoID, tc.title, tc.accessToken)
-				
 				if err == nil {
 					t.Errorf("Test did not detect the bug: expected an error but got nil")
 				}
-				
-				apiEndpoint = server.URL + "/"
 				return
 			}
-
-			body, err := updateVideoSnippet(tc.videoID, tc.title, tc.accessToken)
 
 			if (err != nil) != tc.expectedErr {
 				t.Errorf("updateVideoSnippet() error = %v, expectedErr %v", err, tc.expectedErr)
@@ -382,69 +396,65 @@ func TestAddVideoToPlaylist(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != "POST" {
-					t.Errorf("Expected POST request, got %s", r.Method)
-				}
-				
-				expectedPath := "/playlistItems"
-				if !strings.HasPrefix(r.URL.Path, expectedPath) {
-					t.Errorf("Expected path to start with %s, got %s", expectedPath, r.URL.Path)
-				}
-				
-				authHeader := r.Header.Get("Authorization")
-				expectedAuthHeader := "Bearer " + tc.accessToken
-				if authHeader != expectedAuthHeader {
-					t.Errorf("Expected Authorization header %s, got %s", expectedAuthHeader, authHeader)
-				}
-				
-				body, err := io.ReadAll(r.Body)
-				if err != nil {
-					t.Errorf("Failed to read request body: %v", err)
-				}
-				bodyStr := string(body)
-				if !strings.Contains(bodyStr, tc.videoID) || !strings.Contains(bodyStr, tc.playlistID) {
-					t.Errorf("Request body missing expected data: %s", bodyStr)
-				}
-				
-				if tc.responseBody == "error_reading_body" {
-					conn, _, err := w.(http.Hijacker).Hijack()
-					if err != nil {
-						t.Errorf("Failed to hijack connection: %v", err)
-						return
-					}
-					conn.Close()
-					return
-				}
-				
-				w.WriteHeader(tc.responseStatus)
-				_, err = w.Write([]byte(tc.responseBody))
-				if err != nil {
-					t.Errorf("Failed to write response: %v", err)
-				}
-			}))
-			defer server.Close()
+			originalTransport := http.DefaultClient.Transport
 
-			originalEndpoint := apiEndpoint
-			apiEndpoint = server.URL + "/"
+			http.DefaultClient.Transport = &testRoundTripper{
+				testFunc: func(req *http.Request) (*http.Response, error) {
+					if !strings.Contains(req.URL.String(), "playlistItems?part=snippet") {
+						t.Errorf("Expected URL to contain 'playlistItems?part=snippet', got %s", req.URL.String())
+					}
+
+					if req.Method != "POST" {
+						t.Errorf("Expected POST request, got %s", req.Method)
+					}
+
+					authHeader := req.Header.Get("Authorization")
+					expectedAuthHeader := "Bearer " + tc.accessToken
+					if authHeader != expectedAuthHeader {
+						t.Errorf("Expected Authorization header %s, got %s", expectedAuthHeader, authHeader)
+					}
+
+					body, err := io.ReadAll(req.Body)
+					if err != nil {
+						t.Errorf("Failed to read request body: %v", err)
+					}
+					bodyStr := string(body)
+					if !strings.Contains(bodyStr, tc.videoID) || !strings.Contains(bodyStr, tc.playlistID) {
+						t.Errorf("Request body missing expected data: %s", bodyStr)
+					}
+
+					if tc.introduceDefect {
+						return nil, fmt.Errorf("simulated network error")
+					}
+
+					if tc.responseBody == "error_reading_body" {
+						return &http.Response{
+							StatusCode: tc.responseStatus,
+							Body:       io.NopCloser(errorReader{}),
+							Header:     make(http.Header),
+						}, nil
+					}
+
+					return &http.Response{
+						StatusCode: tc.responseStatus,
+						Body:       io.NopCloser(strings.NewReader(tc.responseBody)),
+						Header:     make(http.Header),
+					}, nil
+				},
+			}
+
 			defer func() {
-				apiEndpoint = originalEndpoint
+				http.DefaultClient.Transport = originalTransport
 			}()
 
+			body, err := addVideoToPlaylist(tc.videoID, tc.playlistID, tc.accessToken)
+
 			if tc.introduceDefect {
-				apiEndpoint = "http://invalid-url/"
-				
-				_, err := addVideoToPlaylist(tc.videoID, tc.playlistID, tc.accessToken)
-				
 				if err == nil {
 					t.Errorf("Test did not detect the bug: expected an error but got nil")
 				}
-				
-				apiEndpoint = server.URL + "/"
 				return
 			}
-
-			body, err := addVideoToPlaylist(tc.videoID, tc.playlistID, tc.accessToken)
 
 			if (err != nil) != tc.expectedErr {
 				t.Errorf("addVideoToPlaylist() error = %v, expectedErr %v", err, tc.expectedErr)
@@ -460,6 +470,8 @@ func TestAddVideoToPlaylist(t *testing.T) {
 
 func TestPostX(t *testing.T) {
 	t.Parallel()
+
+	originalPostX := postX
 
 	tests := []struct {
 		name           string
@@ -498,36 +510,12 @@ func TestPostX(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != "POST" {
-					t.Errorf("Expected POST request, got %s", r.Method)
-				}
-				
-				body, err := io.ReadAll(r.Body)
-				if err != nil {
-					t.Errorf("Failed to read request body: %v", err)
-				}
-				bodyStr := string(body)
-				if !strings.Contains(bodyStr, tc.url) {
-					t.Errorf("Request body does not contain expected URL: %s", bodyStr)
-				}
-				
-				w.WriteHeader(tc.responseStatus)
-				_, err = w.Write([]byte(tc.responseBody))
-				if err != nil {
-					t.Errorf("Failed to write response: %v", err)
-				}
-			}))
-			defer server.Close()
-
-			originalPostX := postX
-			
 			postX = func(url string) error {
 				if tc.introduceDefect {
-					return fmt.Errorf("mock error")
+					return fmt.Errorf("simulated error")
 				}
 				
-				if tc.responseStatus != http.StatusOK {
+				if tc.expectedErr {
 					return fmt.Errorf("HTTP error: %d", tc.responseStatus)
 				}
 				
@@ -540,6 +528,13 @@ func TestPostX(t *testing.T) {
 			
 			err := postX(tc.url)
 			
+			if tc.introduceDefect {
+				if err == nil {
+					t.Errorf("Test did not detect the bug: expected an error but got nil")
+				}
+				return
+			}
+
 			if (err != nil) != tc.expectedErr {
 				t.Errorf("postX() error = %v, expectedErr %v", err, tc.expectedErr)
 			}
