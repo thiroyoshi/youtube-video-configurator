@@ -691,66 +691,6 @@ func TestVideoConverter(t *testing.T) {
 	}
 }
 
-func TestOriginalVideoConverter(t *testing.T) {
-	t.Parallel()
-
-	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if _, err := fmt.Fprintln(w, `{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`); err != nil {
-			t.Errorf("Failed to write response: %v", err)
-		}
-	}))
-	defer tokenServer.Close()
-
-	youtubeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		
-		if strings.Contains(r.URL.Path, "videos") {
-			if _, err := fmt.Fprintln(w, `{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`); err != nil {
-				t.Errorf("Failed to write response: %v", err)
-			}
-		} else if strings.Contains(r.URL.Path, "playlistItems") {
-			if _, err := fmt.Fprintln(w, `{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`); err != nil {
-				t.Errorf("Failed to write response: %v", err)
-			}
-		}
-	}))
-	defer youtubeServer.Close()
-
-	twitterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated) // Twitter API returns 201 Created for successful tweets
-		if _, err := fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`); err != nil {
-			t.Errorf("Failed to write response: %v", err)
-		}
-	}))
-	defer twitterServer.Close()
-
-	originalTransport := http.DefaultTransport
-	defer func() {
-		http.DefaultTransport = originalTransport
-	}()
-
-	http.DefaultTransport = &multiServerTransport{
-		originalTransport: originalTransport,
-		tokenServer:       tokenServer,
-		youtubeServer:     youtubeServer,
-		twitterServer:     twitterServer,
-	}
-
-	req := httptest.NewRequest("POST", "/", strings.NewReader(`{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`))
-	req.Header.Add("X-GABA-Header", "gabafortnite")
-	
-	rr := httptest.NewRecorder()
-	
-	videoConverter(rr, req)
-	
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
-}
 
 func TestOriginalVideoConverter(t *testing.T) {
 	t.Parallel()
