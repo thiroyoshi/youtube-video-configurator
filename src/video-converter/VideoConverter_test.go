@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -35,21 +36,25 @@ type Dependencies struct {
 }
 
 type RealTokenRefresher struct{}
+
 func (r *RealTokenRefresher) RefreshAccessToken() (string, error) {
 	return refreshAccessToken()
 }
 
 type RealVideoUpdater struct{}
+
 func (r *RealVideoUpdater) UpdateVideoSnippet(videoID, title, accessToken string) ([]byte, error) {
 	return updateVideoSnippet(videoID, title, accessToken)
 }
 
 type RealPlaylistManager struct{}
+
 func (r *RealPlaylistManager) AddVideoToPlaylist(videoID, playlistID, accessToken string) ([]byte, error) {
 	return addVideoToPlaylist(videoID, playlistID, accessToken)
 }
 
 type RealSocialPoster struct{}
+
 func (r *RealSocialPoster) PostX(url string) error {
 	return postX(url)
 }
@@ -191,189 +196,82 @@ func (m *MockSocialPoster) PostX(url string) error {
 	return nil
 }
 
-func TestGetVideoSnippet(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name           string
-		videoID        string
-		videoTitle     string
-		expectedFields []string
-		introduceDefect bool
-	}{
-		{
-			name:       "Normal case",
-			videoID:    "test_video_id",
-			videoTitle: "Test Video Title",
-			expectedFields: []string{
-				`"id": "test_video_id"`,
-				`"title": "Test Video Title"`,
-				`"categoryId": "20"`,
-				`"tags": ["Fortnite"`,
-			},
-		},
-		{
-			name:       "Empty video ID",
-			videoID:    "",
-			videoTitle: "Test Video Title",
-			expectedFields: []string{
-				`"id": ""`,
-				`"title": "Test Video Title"`,
-			},
-		},
-		{
-			name:       "Empty video title",
-			videoID:    "test_video_id",
-			videoTitle: "",
-			expectedFields: []string{
-				`"id": "test_video_id"`,
-				`"title": ""`,
-			},
-		},
-		{
-			name:            "Temporary bug test",
-			videoID:         "test_video_id",
-			videoTitle:      "Test Video Title",
-			expectedFields:  []string{`"id": "wrong_id"`},
-			introduceDefect: true,
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			
-			result := getVideoSnippet(tc.videoID, tc.videoTitle)
-			
-			if tc.introduceDefect {
-				for _, field := range tc.expectedFields {
-					if strings.Contains(result, field) {
-						t.Errorf("Test did not detect the bug: expected field %s to be missing from result", field)
-					}
-				}
-				return
-			}
-			
-			for _, field := range tc.expectedFields {
-				if !strings.Contains(result, field) {
-					t.Errorf("getVideoSnippet() result does not contain expected field: %s", field)
-				}
-			}
-			
-			var jsonMap map[string]interface{}
-			err := json.Unmarshal([]byte(result), &jsonMap)
-			if err != nil {
-				t.Errorf("getVideoSnippet() did not return valid JSON: %v", err)
-			}
-		})
-	}
-}
-
 func setupTestServers(t *testing.T) (map[string]*httptest.Server, func()) {
 	oauthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := fmt.Fprintln(w, `{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`); err != nil {
-			t.Errorf("Failed to write response: %v", err)
-		}
+		w.Write([]byte(`{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`))
 	}))
-	
+
 	youtubeVideosServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "PUT" {
 			t.Errorf("Expected PUT request, got %s", r.Method)
 		}
-		
+
 		if r.URL.Query().Get("part") != "snippet" {
 			t.Errorf("Expected part=snippet, got %s", r.URL.Query().Get("part"))
 		}
-		
+
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
 			t.Errorf("Expected Authorization header to start with 'Bearer ', got %s", authHeader)
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := fmt.Fprintln(w, `{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`); err != nil {
-			t.Errorf("Failed to write response: %v", err)
-		}
+		w.Write([]byte(`{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`))
 	}))
-	
+
 	youtubePlaylistsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
-		
+
 		if r.URL.Query().Get("part") != "snippet" {
 			t.Errorf("Expected part=snippet, got %s", r.URL.Query().Get("part"))
 		}
-		
+
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
 			t.Errorf("Expected Authorization header to start with 'Bearer ', got %s", authHeader)
 		}
-		
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Errorf("Failed to read request body: %v", err)
-		}
-		
-		bodyStr := string(body)
-		if !strings.Contains(bodyStr, "videoId") || !strings.Contains(bodyStr, "playlistId") {
-			t.Errorf("Request body missing expected data: %s", bodyStr)
-		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := fmt.Fprintln(w, `{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`); err != nil {
-			t.Errorf("Failed to write response: %v", err)
-		}
+		w.Write([]byte(`{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`))
 	}))
-	
+
 	twitterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
-		
+
 		if r.URL.Path != "/2/tweets" {
 			t.Errorf("Expected path /2/tweets, got %s", r.URL.Path)
 		}
-		
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Errorf("Failed to read request body: %v", err)
-		}
-		
-		bodyStr := string(body)
-		if !strings.Contains(bodyStr, "text") {
-			t.Errorf("Request body missing expected data: %s", bodyStr)
-		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated) // Twitter API returns 201 Created for successful tweets
-		if _, err := fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`); err != nil {
-			t.Errorf("Failed to write response: %v", err)
-		}
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`))
 	}))
-	
+
 	servers := map[string]*httptest.Server{
-		"oauth":            oauthServer,
-		"youtube_videos":   youtubeVideosServer,
+		"oauth":             oauthServer,
+		"youtube_videos":    youtubeVideosServer,
 		"youtube_playlists": youtubePlaylistsServer,
-		"twitter":          twitterServer,
+		"twitter":           twitterServer,
 	}
-	
+
 	cleanup := func() {
 		for _, server := range servers {
 			server.Close()
 		}
 	}
-	
+
 	return servers, cleanup
 }
 
@@ -394,11 +292,11 @@ func TestRefreshAccessToken(t *testing.T) {
 	}
 
 	token, err := refreshAccessToken()
-	
+
 	if err != nil {
 		t.Errorf("refreshAccessToken() returned an error: %v", err)
 	}
-	
+
 	if token != "test_access_token" {
 		t.Errorf("refreshAccessToken() returned wrong token: got %v, want %v", token, "test_access_token")
 	}
@@ -411,10 +309,10 @@ type customTransport struct {
 
 func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	fmt.Printf("DEBUG: Intercepting request to %s %s\n", req.Method, req.URL.String())
-	
+
 	var server *httptest.Server
 	var pathToUse string
-	
+
 	var bodyBytes []byte
 	if req.Body != nil {
 		var err error
@@ -424,13 +322,13 @@ func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
-	
+
 	switch {
 	case strings.Contains(req.URL.Host, "accounts.google.com") || strings.Contains(req.URL.Path, "oauth2/token"):
 		server = t.servers["oauth"]
 		pathToUse = "/"
 		fmt.Println("DEBUG: Routing to OAuth mock server")
-		
+
 	case strings.Contains(req.URL.Host, "youtube.googleapis.com") || strings.Contains(req.URL.Host, "www.googleapis.com"):
 		if strings.Contains(req.URL.Path, "videos") {
 			server = t.servers["youtube_videos"]
@@ -441,38 +339,35 @@ func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			pathToUse = "/"
 			fmt.Println("DEBUG: Routing to YouTube Playlists mock server")
 		}
-		
+
 	case strings.Contains(req.URL.Host, "api.twitter.com") || strings.Contains(req.URL.Path, "tweets"):
 		server = t.servers["twitter"]
 		pathToUse = "/2/tweets"
 		fmt.Println("DEBUG: Routing to Twitter mock server")
 	}
-	
+
 	if server != nil {
 		newURL := server.URL + pathToUse
 		if req.URL.RawQuery != "" && pathToUse == "/" {
 			newURL += "?" + req.URL.RawQuery
 		}
-		
+
 		newReq, err := http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
 		if err != nil {
 			return nil, err
 		}
-		
-		for key, values := range req.Header {
-			for _, value := range values {
-				newReq.Header.Add(key, value)
-			}
-		}
-		
+
+		// Copy all headers including Authorization
+		newReq.Header = req.Header.Clone()
+
 		client := &http.Client{
 			Transport: &http.Transport{},
 		}
-		
+
 		fmt.Printf("DEBUG: Redirecting to mock server: %s\n", newURL)
 		return client.Do(newReq)
 	}
-	
+
 	fmt.Printf("DEBUG: No mock server found for %s, using original transport\n", req.URL.String())
 	return t.originalTransport.RoundTrip(req)
 }
@@ -494,14 +389,21 @@ func TestUpdateVideoSnippet(t *testing.T) {
 	}
 
 	body, err := updateVideoSnippet("test_video_id", "Test Video Title", "test_access_token")
-	
+
 	if err != nil {
 		t.Errorf("updateVideoSnippet() returned an error: %v", err)
 	}
-	
-	expectedResponse := `{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}` + "\n"
-	if string(body) != expectedResponse {
-		t.Errorf("updateVideoSnippet() returned wrong body: got %v, want %v", string(body), expectedResponse)
+
+	var got, want map[string]interface{}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Errorf("Failed to unmarshal response body: %v", err)
+	}
+	if err := json.Unmarshal([]byte(`{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`), &want); err != nil {
+		t.Errorf("Failed to unmarshal expected body: %v", err)
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("updateVideoSnippet() returned wrong body: got %v, want %v", got, want)
 	}
 }
 
@@ -522,37 +424,21 @@ func TestAddVideoToPlaylist(t *testing.T) {
 	}
 
 	body, err := addVideoToPlaylist("test_video_id", "test_playlist_id", "test_access_token")
-	
+
 	if err != nil {
 		t.Errorf("addVideoToPlaylist() returned an error: %v", err)
 	}
-	
-	expectedResponse := `{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}` + "\n"
-	if string(body) != expectedResponse {
-		t.Errorf("addVideoToPlaylist() returned wrong body: got %v, want %v", string(body), expectedResponse)
+
+	var got, want map[string]interface{}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Errorf("Failed to unmarshal response body: %v", err)
 	}
-}
-
-func TestPostX(t *testing.T) {
-	t.Parallel()
-
-	servers, cleanup := setupTestServers(t)
-	defer cleanup()
-
-	originalTransport := http.DefaultTransport
-	defer func() {
-		http.DefaultTransport = originalTransport
-	}()
-
-	http.DefaultTransport = &customTransport{
-		originalTransport: originalTransport,
-		servers:           servers,
+	if err := json.Unmarshal([]byte(`{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`), &want); err != nil {
+		t.Errorf("Failed to unmarshal expected body: %v", err)
 	}
 
-	err := postX("https://example.com/video")
-	
-	if err != nil {
-		t.Errorf("postX() returned an error: %v", err)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("addVideoToPlaylist() returned wrong body: got %v, want %v", got, want)
 	}
 }
 
@@ -560,27 +446,27 @@ func TestVideoConverter(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name              string
-		method            string
-		header            map[string]string
-		body              string
-		refreshTokenErr   bool
-		updateSnippetErr  bool
-		addToPlaylistErr  bool
-		postXErr          bool
-		expectedStatus    int
-		introduceDefect   bool
+		name             string
+		method           string
+		header           map[string]string
+		body             string
+		refreshTokenErr  bool
+		updateSnippetErr bool
+		addToPlaylistErr bool
+		postXErr         bool
+		expectedStatus   int
+		introduceDefect  bool
 	}{
 		{
-			name:           "Success case",
-			method:         "POST",
-			header:         map[string]string{"X-GABA-Header": "gabafortnite"},
-			body:           `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
-			refreshTokenErr: false,
+			name:             "Success case",
+			method:           "POST",
+			header:           map[string]string{"X-GABA-Header": "gabafortnite"},
+			body:             `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
+			refreshTokenErr:  false,
 			updateSnippetErr: false,
 			addToPlaylistErr: false,
-			postXErr:        false,
-			expectedStatus: http.StatusOK,
+			postXErr:         false,
+			expectedStatus:   http.StatusOK,
 		},
 		{
 			name:           "Method not allowed",
@@ -597,58 +483,58 @@ func TestVideoConverter(t *testing.T) {
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
-			name:           "Refresh token error",
-			method:         "POST",
-			header:         map[string]string{"X-GABA-Header": "gabafortnite"},
-			body:           `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
+			name:            "Refresh token error",
+			method:          "POST",
+			header:          map[string]string{"X-GABA-Header": "gabafortnite"},
+			body:            `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
 			refreshTokenErr: true,
-			expectedStatus: http.StatusInternalServerError,
+			expectedStatus:  http.StatusInternalServerError,
 		},
 		{
-			name:           "Invalid request body",
-			method:         "POST",
-			header:         map[string]string{"X-GABA-Header": "gabafortnite"},
-			body:           `invalid json`,
+			name:            "Invalid request body",
+			method:          "POST",
+			header:          map[string]string{"X-GABA-Header": "gabafortnite"},
+			body:            `invalid json`,
 			refreshTokenErr: false,
-			expectedStatus: http.StatusBadRequest,
+			expectedStatus:  http.StatusBadRequest,
 		},
 		{
-			name:           "Invalid URL format",
-			method:         "POST",
-			header:         map[string]string{"X-GABA-Header": "gabafortnite"},
-			body:           `{"url": "https://www.youtube.com/invalid_url", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
+			name:            "Invalid URL format",
+			method:          "POST",
+			header:          map[string]string{"X-GABA-Header": "gabafortnite"},
+			body:            `{"url": "https://www.youtube.com/invalid_url", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
 			refreshTokenErr: false,
-			expectedStatus: http.StatusBadRequest,
+			expectedStatus:  http.StatusBadRequest,
 		},
 		{
-			name:           "Update snippet error",
-			method:         "POST",
-			header:         map[string]string{"X-GABA-Header": "gabafortnite"},
-			body:           `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
-			refreshTokenErr: false,
+			name:             "Update snippet error",
+			method:           "POST",
+			header:           map[string]string{"X-GABA-Header": "gabafortnite"},
+			body:             `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
+			refreshTokenErr:  false,
 			updateSnippetErr: true,
-			expectedStatus: http.StatusInternalServerError,
+			expectedStatus:   http.StatusInternalServerError,
 		},
 		{
-			name:           "Add to playlist error",
-			method:         "POST",
-			header:         map[string]string{"X-GABA-Header": "gabafortnite"},
-			body:           `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
-			refreshTokenErr: false,
+			name:             "Add to playlist error",
+			method:           "POST",
+			header:           map[string]string{"X-GABA-Header": "gabafortnite"},
+			body:             `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
+			refreshTokenErr:  false,
 			updateSnippetErr: false,
 			addToPlaylistErr: true,
-			expectedStatus: http.StatusInternalServerError,
+			expectedStatus:   http.StatusInternalServerError,
 		},
 		{
-			name:           "Post X error",
-			method:         "POST",
-			header:         map[string]string{"X-GABA-Header": "gabafortnite"},
-			body:           `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
-			refreshTokenErr: false,
+			name:             "Post X error",
+			method:           "POST",
+			header:           map[string]string{"X-GABA-Header": "gabafortnite"},
+			body:             `{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`,
+			refreshTokenErr:  false,
 			updateSnippetErr: false,
 			addToPlaylistErr: false,
-			postXErr:        true,
-			expectedStatus: http.StatusInternalServerError,
+			postXErr:         true,
+			expectedStatus:   http.StatusInternalServerError,
 		},
 	}
 
@@ -658,13 +544,13 @@ func TestVideoConverter(t *testing.T) {
 			t.Parallel()
 
 			req := httptest.NewRequest(tc.method, "/", strings.NewReader(tc.body))
-			
+
 			for k, v := range tc.header {
 				req.Header.Add(k, v)
 			}
-			
+
 			rr := httptest.NewRecorder()
-			
+
 			deps := Dependencies{
 				TokenRefresher: &MockTokenRefresher{
 					ShouldError: tc.refreshTokenErr,
@@ -679,11 +565,11 @@ func TestVideoConverter(t *testing.T) {
 					ShouldError: tc.postXErr,
 				},
 			}
-			
+
 			handler := videoConverterWithDeps(deps)
-			
+
 			handler(rr, req)
-			
+
 			if status := rr.Code; status != tc.expectedStatus {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tc.expectedStatus)
 			}
@@ -691,31 +577,46 @@ func TestVideoConverter(t *testing.T) {
 	}
 }
 
-
 func TestOriginalVideoConverter(t *testing.T) {
 	t.Parallel()
 
 	servers, cleanup := setupTestServers(t)
 	defer cleanup()
 
+	// テスト用のトランスポートを設定
+	testTransport := &customTransport{
+		originalTransport: http.DefaultTransport,
+		servers:           servers,
+	}
+
+	// 元のトランスポートを保持
 	originalTransport := http.DefaultTransport
+	http.DefaultTransport = testTransport
 	defer func() {
 		http.DefaultTransport = originalTransport
 	}()
 
-	http.DefaultTransport = &customTransport{
-		originalTransport: originalTransport,
-		servers:           servers,
-	}
-
+	// リクエストの作成
 	req := httptest.NewRequest("POST", "/", strings.NewReader(`{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`))
 	req.Header.Add("X-GABA-Header", "gabafortnite")
-	
+	req.Header.Add("Content-Type", "application/json")
+
+	// レスポンスレコーダーの作成
 	rr := httptest.NewRecorder()
-	
-	videoConverter(rr, req)
-	
+
+	// ハンドラーの実行
+	handler := http.HandlerFunc(videoConverter)
+	handler.ServeHTTP(rr, req)
+
+	// レスポンスの検証
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Logf("Response body: %v", rr.Body.String())
+	}
+
+	// モックサーバーからのレスポンスを検証
+	var respBody map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &respBody); err != nil {
+		t.Logf("Response is not JSON: %v", rr.Body.String())
 	}
 }

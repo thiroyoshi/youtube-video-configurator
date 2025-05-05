@@ -268,7 +268,6 @@ func postX(url string) error {
 
 // videoConverter is an HTTP Cloud Function.
 func videoConverter(w http.ResponseWriter, r *http.Request) {
-
 	// Check http method
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -284,8 +283,9 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	// Refresh access token
 	accsessToken, err := refreshAccessToken()
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("failed to refresh token", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, err)
 		return
 	}
 
@@ -297,8 +297,9 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("failed to read request body", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, err)
 		return
 	}
 	fmt.Println("body:", string(body))
@@ -307,8 +308,9 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	jsonBytes := ([]byte)(body)
 	data := new(FunctionsRequest)
 	if err = json.Unmarshal(jsonBytes, data); err != nil {
-		fmt.Println(err)
+		slog.Error("failed to parse request body", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, err)
 		return
 	}
 	fmt.Println("data:", data)
@@ -316,8 +318,10 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	// Get videoId
 	dataStrings := strings.Split(data.URL, "?v=")
 	if len(dataStrings) != 2 {
-		fmt.Println("invalid url:", data.URL)
+		errMsg := fmt.Sprintf("invalid url: %s", data.URL)
+		slog.Error(errMsg)
 		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, errMsg)
 		return
 	}
 	videoID := dataStrings[1]
@@ -336,10 +340,9 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	// Update video snippet
 	resp, err := updateVideoSnippet(videoID, title, accsessToken)
 	if err != nil {
+		slog.Error("failed to update video snippet", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if _, werr := fmt.Fprint(w, err); werr != nil {
-			slog.Error("failed to write error response", "error", werr)
-		}
+		fmt.Fprint(w, err)
 		return
 	}
 
@@ -348,9 +351,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("failed to add video to playlist", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if _, werr := fmt.Fprint(w, err); werr != nil {
-			slog.Error("failed to write error response", "error", werr)
-		}
+		fmt.Fprint(w, err)
 		return
 	}
 
@@ -359,20 +360,14 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("failed to post to X", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if _, werr := fmt.Fprint(w, err); werr != nil {
-			slog.Error("failed to write error response", "error", werr)
-		}
+		fmt.Fprint(w, err)
 		return
 	}
 
-	// Write Response
+	// Set headers and write response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	if _, err = w.Write(resp); err != nil {
 		slog.Error("failed to write response", "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		if _, werr := fmt.Fprint(w, err); werr != nil {
-			slog.Error("failed to write error response", "error", werr)
-		}
-		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
