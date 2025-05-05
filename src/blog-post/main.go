@@ -331,6 +331,7 @@ func addContentFormat(content string) string {
 		<p>今日もFortniteの情報をまとめてみます！</p>
 	`
 
+	// links from "https://www.amazon.co.jp/b/?encoding=UTF8&node=25009176051&ref=cct_cg_CIHAssoc_2c1&pf_rd_p=1c92d06f-632f-4dc2-8657-e9f22172f4e7&pf_rd_r=PRFGAWFG1RA6R3ZE5C9H"
 	links := []string{
 		"<p><a href=\"https://amzn.to/4251ZYM\">【純正品】DualSense ワイヤレスコントローラー \"フォートナイト\" リミテッドエディション（CFI-ZCT1JZ4）</a></p>",
 		"<p><a href=\"https://amzn.to/43IeMDf\"> ガレリア ゲーミングPC GALLERIA RM5R-R46 RTX 4060 Ryzen 5 4500 メモリ32GB SSD1TB Windows11</a></p>",
