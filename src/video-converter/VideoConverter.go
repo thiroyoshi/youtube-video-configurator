@@ -47,7 +47,10 @@ func init() {
 
 func refreshAccessToken() (string, error) {
 	requestBody := fmt.Sprintf("client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token", clientID, clientSecret, refreshToken)
-	req, _ := http.NewRequest("POST", tokenEndpoint, bytes.NewBuffer([]byte(requestBody)))
+	req, err := http.NewRequest("POST", tokenEndpoint, bytes.NewBuffer([]byte(requestBody)))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{}
@@ -117,19 +120,21 @@ func getVideoSnippet(videoID string, videoTitle string) string {
 	return requestBody
 }
 
-func updateVideoSnippet(videoID string, title string, accsessToken string) ([]byte, error) {
+func updateVideoSnippet(videoID string, title string, accessToken string) ([]byte, error) {
 	url := apiEndpoint + "videos?part=snippet"
 	requestBody := getVideoSnippet(videoID, title)
 
-	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
-	req.Header.Add("Authorization", "Bearer "+accsessToken)
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Add("Authorization", "Bearer "+accessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("failed to request to update snippet", "error", err)
-		return []byte{}, err
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
@@ -137,27 +142,28 @@ func updateVideoSnippet(videoID string, title string, accsessToken string) ([]by
 		}
 	}()
 
-	if resp.StatusCode != 200 {
-		slog.Error("failed to update snippet", "resp.Status", resp.Status)
-		return []byte{}, fmt.Errorf("failed to update snippet")
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to update snippet: status code %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("failed to parse snippet response", "error", err, "status", resp.Status)
-		return []byte{}, err
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	slog.Info("updated snippet response")
 
 	return body, nil
 }
 
-func addVideoToPlaylist(videoID string, playListId string, accsessToken string) ([]byte, error) {
+func addVideoToPlaylist(videoID string, playListId string, accessToken string) ([]byte, error) {
 	url := apiEndpoint + "playlistItems?part=snippet"
 	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoID)
 
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(requestBody)))
-	req.Header.Add("Authorization", "Bearer "+accsessToken)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(requestBody)))
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Add("Authorization", "Bearer "+accessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}
@@ -222,8 +228,7 @@ func postX(url string) error {
 	// POSTリクエストを作成
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
-		fmt.Println("リクエスト作成エラー:", err)
-		return err
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -251,12 +256,15 @@ func postX(url string) error {
 	fmt.Println("レスポンスステータス:", resp.Status)
 	fmt.Println("レスポンスボディ:", string(body))
 
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("twitter API returned unexpected status code: %d", resp.StatusCode)
+	}
+
 	return nil
 }
 
 // videoConverter is an HTTP Cloud Function.
 func videoConverter(w http.ResponseWriter, r *http.Request) {
-
 	// Check http method
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -270,10 +278,13 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Refresh access token
-	accsessToken, err := refreshAccessToken()
+	accessToken, err := refreshAccessToken()
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("failed to refresh token", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		if _, err := fmt.Fprint(w, err); err != nil {
+			slog.Error("failed to write error response", "error", err)
+		}
 		return
 	}
 
@@ -285,8 +296,11 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("failed to read request body", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		if _, err := fmt.Fprint(w, err); err != nil {
+			slog.Error("failed to write error response", "error", err)
+		}
 		return
 	}
 	fmt.Println("body:", string(body))
@@ -295,8 +309,11 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	jsonBytes := ([]byte)(body)
 	data := new(FunctionsRequest)
 	if err = json.Unmarshal(jsonBytes, data); err != nil {
-		fmt.Println(err)
+		slog.Error("failed to parse request body", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
+		if _, err := fmt.Fprint(w, err); err != nil {
+			slog.Error("failed to write error response", "error", err)
+		}
 		return
 	}
 	fmt.Println("data:", data)
@@ -304,8 +321,12 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	// Get videoId
 	dataStrings := strings.Split(data.URL, "?v=")
 	if len(dataStrings) != 2 {
-		fmt.Println("invalid url:", data.URL)
+		errMsg := fmt.Sprintf("invalid url: %s", data.URL)
+		slog.Error(errMsg)
 		w.WriteHeader(http.StatusBadRequest)
+		if _, err := fmt.Fprint(w, errMsg); err != nil {
+			slog.Error("failed to write error response", "error", err)
+		}
 		return
 	}
 	videoID := dataStrings[1]
@@ -322,22 +343,23 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	playlistID := playlistNormal
 
 	// Update video snippet
-	resp, err := updateVideoSnippet(videoID, title, accsessToken)
+	resp, err := updateVideoSnippet(videoID, title, accessToken)
 	if err != nil {
+		slog.Error("failed to update video snippet", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if _, werr := fmt.Fprint(w, err); werr != nil {
-			slog.Error("failed to write error response", "error", werr)
+		if _, err := fmt.Fprint(w, err); err != nil {
+			slog.Error("failed to write error response", "error", err)
 		}
 		return
 	}
 
 	// Add video to playlist
-	_, err = addVideoToPlaylist(videoID, playlistID, accsessToken)
+	_, err = addVideoToPlaylist(videoID, playlistID, accessToken)
 	if err != nil {
 		slog.Error("failed to add video to playlist", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if _, werr := fmt.Fprint(w, err); werr != nil {
-			slog.Error("failed to write error response", "error", werr)
+		if _, err := fmt.Fprint(w, err); err != nil {
+			slog.Error("failed to write error response", "error", err)
 		}
 		return
 	}
@@ -347,20 +369,16 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("failed to post to X", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if _, werr := fmt.Fprint(w, err); werr != nil {
-			slog.Error("failed to write error response", "error", werr)
+		if _, err := fmt.Fprint(w, err); err != nil {
+			slog.Error("failed to write error response", "error", err)
 		}
 		return
 	}
 
-	// Write Response
+	// Set headers and write response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	if _, err = w.Write(resp); err != nil {
 		slog.Error("failed to write response", "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		if _, werr := fmt.Fprint(w, err); werr != nil {
-			slog.Error("failed to write error response", "error", werr)
-		}
-		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
