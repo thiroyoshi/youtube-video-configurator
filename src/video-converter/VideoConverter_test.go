@@ -279,7 +279,7 @@ func setupTestServers(t *testing.T) (map[string]*httptest.Server, func()) {
 
 	cleanup := func() {
 		for _, server := range servers {
-			server.Close()
+			defer server.Close()
 		}
 	}
 
@@ -589,8 +589,6 @@ func TestVideoConverter(t *testing.T) {
 }
 
 func TestOriginalVideoConverter(t *testing.T) {
-	t.Parallel()
-
 	servers, cleanup := setupTestServers(t)
 	defer cleanup()
 
@@ -615,8 +613,16 @@ func TestOriginalVideoConverter(t *testing.T) {
 	// レスポンスレコーダーの作成
 	rr := httptest.NewRecorder()
 
+	// テスト用の依存関係を設定
+	deps := Dependencies{
+		TokenRefresher:  &RealTokenRefresher{},
+		VideoUpdater:    &RealVideoUpdater{},
+		PlaylistManager: &RealPlaylistManager{},
+		SocialPoster:    &RealSocialPoster{},
+	}
+
 	// ハンドラーの実行
-	handler := http.HandlerFunc(videoConverter)
+	handler := videoConverterWithDeps(deps)
 	handler.ServeHTTP(rr, req)
 
 	// レスポンスの検証
@@ -625,9 +631,16 @@ func TestOriginalVideoConverter(t *testing.T) {
 		t.Logf("Response body: %v", rr.Body.String())
 	}
 
-	// モックサーバーからのレスポンスを検証
+	// レスポンスのJSONを検証
 	var respBody map[string]interface{}
 	if err := json.Unmarshal(rr.Body.Bytes(), &respBody); err != nil {
-		t.Logf("Response is not JSON: %v", rr.Body.String())
+		t.Errorf("Response is not valid JSON: %v", err)
+		t.Logf("Response body: %v", rr.Body.String())
+		return
+	}
+
+	// レスポンスの内容を検証
+	if id, ok := respBody["id"].(string); !ok || id != "test_video_id" {
+		t.Errorf("Response does not contain expected video ID")
 	}
 }
