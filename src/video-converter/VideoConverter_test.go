@@ -261,10 +261,13 @@ func TestGetVideoSnippet(t *testing.T) {
 				}
 			}
 			
+			cleanedResult := strings.ReplaceAll(result, "\n", "\\n")
+			cleanedResult = strings.ReplaceAll(cleanedResult, "\t", "\\t")
+			
 			var jsonMap map[string]interface{}
-			err := json.Unmarshal([]byte(result), &jsonMap)
+			err := json.Unmarshal([]byte(cleanedResult), &jsonMap)
 			if err != nil {
-				t.Errorf("getVideoSnippet() did not return valid JSON: %v", err)
+				t.Errorf("getVideoSnippet() did not return valid JSON after cleanup: %v", err)
 			}
 		})
 	}
@@ -695,17 +698,67 @@ func TestVideoConverter(t *testing.T) {
 func TestOriginalVideoConverter(t *testing.T) {
 	t.Parallel()
 
-	servers, cleanup := setupTestServers(t)
-	defer cleanup()
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if _, err := fmt.Fprintln(w, `{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
+	}))
+	defer tokenServer.Close()
+
+	youtubeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		
+		if strings.Contains(r.URL.Path, "videos") {
+			if _, err := fmt.Fprintln(w, `{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`); err != nil {
+				t.Errorf("Failed to write response: %v", err)
+			}
+		} else if strings.Contains(r.URL.Path, "playlistItems") {
+			if _, err := fmt.Fprintln(w, `{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`); err != nil {
+				t.Errorf("Failed to write response: %v", err)
+			}
+		}
+	}))
+	defer youtubeServer.Close()
+
+	twitterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated) // Twitter API returns 201 Created for successful tweets
+		if _, err := fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
+	}))
+	defer twitterServer.Close()
 
 	originalTransport := http.DefaultTransport
 	defer func() {
 		http.DefaultTransport = originalTransport
 	}()
 
-	http.DefaultTransport = &customTransport{
-		originalTransport: originalTransport,
-		servers:           servers,
+	http.DefaultTransport = &http.Transport{
+		RoundTripper: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if strings.Contains(req.URL.String(), "accounts.google.com/o/oauth2/token") {
+				newURL, _ := url.Parse(tokenServer.URL)
+				req.URL = newURL
+				return tokenServer.Client().Transport.RoundTrip(req)
+			} else if strings.Contains(req.URL.String(), "googleapis.com/youtube/v3/videos") {
+				newURL, _ := url.Parse(youtubeServer.URL)
+				req.URL = newURL
+				return youtubeServer.Client().Transport.RoundTrip(req)
+			} else if strings.Contains(req.URL.String(), "googleapis.com/youtube/v3/playlistItems") {
+				newURL, _ := url.Parse(youtubeServer.URL)
+				req.URL = newURL
+				return youtubeServer.Client().Transport.RoundTrip(req)
+			} else if strings.Contains(req.URL.String(), "api.twitter.com") {
+				newURL, _ := url.Parse(twitterServer.URL)
+				req.URL = newURL
+				return twitterServer.Client().Transport.RoundTrip(req)
+			}
+			
+			return originalTransport.RoundTrip(req)
+		}),
 	}
 
 	req := httptest.NewRequest("POST", "/", strings.NewReader(`{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`))
@@ -718,4 +771,11 @@ func TestOriginalVideoConverter(t *testing.T) {
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
+}
+
+// roundTripFunc is a helper type that implements http.RoundTripper
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
