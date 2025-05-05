@@ -109,7 +109,9 @@ func videoConverterWithDeps(deps Dependencies) http.HandlerFunc {
 		resp, err := deps.VideoUpdater.UpdateVideoSnippet(videoID, title, accessToken)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err)
+			if _, err := fmt.Fprint(w, err); err != nil {
+				fmt.Println("failed to write error to response:", err)
+			}
 			return
 		}
 
@@ -117,7 +119,9 @@ func videoConverterWithDeps(deps Dependencies) http.HandlerFunc {
 		if err != nil {
 			fmt.Println("failed to add video to playlist:", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err)
+			if _, err := fmt.Fprint(w, err); err != nil {
+				fmt.Println("failed to write error to response:", err)
+			}
 			return
 		}
 
@@ -125,14 +129,18 @@ func videoConverterWithDeps(deps Dependencies) http.HandlerFunc {
 		if err != nil {
 			fmt.Println("failed to post to X:", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err)
+			if _, err := fmt.Fprint(w, err); err != nil {
+				fmt.Println("failed to write error to response:", err)
+			}
 			return
 		}
 
 		if _, err = w.Write(resp); err != nil {
 			fmt.Println("failed to write response:", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err)
+			if _, err := fmt.Fprint(w, err); err != nil {
+				fmt.Println("failed to write error to response:", err)
+			}
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -276,7 +284,9 @@ func TestRefreshAccessToken(t *testing.T) {
 		
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, `{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`)
+		if _, err := fmt.Fprintln(w, `{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -459,7 +469,9 @@ func TestPostX(t *testing.T) {
 		
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated) // Twitter API returns 201 Created for successful tweets
-		fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`)
+		if _, err := fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -621,7 +633,9 @@ func TestOriginalVideoConverter(t *testing.T) {
 	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, `{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`)
+		if _, err := fmt.Fprintln(w, `{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 	defer tokenServer.Close()
 
@@ -630,9 +644,13 @@ func TestOriginalVideoConverter(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		
 		if strings.Contains(r.URL.Path, "videos") {
-			fmt.Fprintln(w, `{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`)
+			if _, err := fmt.Fprintln(w, `{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`); err != nil {
+				t.Errorf("Failed to write response: %v", err)
+			}
 		} else if strings.Contains(r.URL.Path, "playlistItems") {
-			fmt.Fprintln(w, `{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`)
+			if _, err := fmt.Fprintln(w, `{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`); err != nil {
+				t.Errorf("Failed to write response: %v", err)
+			}
 		}
 	}))
 	defer youtubeServer.Close()
@@ -640,7 +658,9 @@ func TestOriginalVideoConverter(t *testing.T) {
 	twitterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated) // Twitter API returns 201 Created for successful tweets
-		fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`)
+		if _, err := fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 	defer twitterServer.Close()
 
@@ -679,25 +699,27 @@ func (t *multiServerTransport) RoundTrip(req *http.Request) (*http.Response, err
 	var newReq *http.Request
 	var err error
 	
-	if strings.Contains(req.URL.String(), "accounts.google.com/o/oauth2/token") {
-		newURL := t.tokenServer.URL + req.URL.Path
-		newReq, err = http.NewRequest(req.Method, newURL, req.Body)
-	} else if strings.Contains(req.URL.String(), "youtube.googleapis.com/youtube/v3") {
-		newURL := t.youtubeServer.URL + req.URL.Path
+	var bodyBytes []byte
+	if req.Body != nil {
+		bodyBytes, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
+	
+	if strings.Contains(req.URL.String(), "accounts.google.com") || strings.Contains(req.URL.String(), "oauth2/token") {
+		newURL := t.tokenServer.URL
+		newReq, err = http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
+	} else if strings.Contains(req.URL.String(), "youtube.googleapis.com") || strings.Contains(req.URL.String(), "youtube/v3") {
+		newURL := t.youtubeServer.URL
 		if req.URL.RawQuery != "" {
 			newURL += "?" + req.URL.RawQuery
 		}
-		
-		var bodyBytes []byte
-		if req.Body != nil {
-			bodyBytes, _ = io.ReadAll(req.Body)
-			req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-		}
-		
 		newReq, err = http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
-	} else if strings.Contains(req.URL.String(), "api.twitter.com") {
-		newURL := t.twitterServer.URL + req.URL.Path
-		newReq, err = http.NewRequest(req.Method, newURL, req.Body)
+	} else if strings.Contains(req.URL.String(), "api.twitter.com") || strings.Contains(req.URL.String(), "tweets") {
+		newURL := t.twitterServer.URL
+		newReq, err = http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
 	} else {
 		return t.originalTransport.RoundTrip(req)
 	}
