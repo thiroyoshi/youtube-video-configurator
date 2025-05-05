@@ -345,6 +345,10 @@ func addContentFormat(content string) string {
 		"<p><a href=\"https://amzn.to/4jHBekY\">FORTNITE ゲーミングキーボード Razer レイザー BlackWidow V4 X Fortnite Edition</a></p>",
 		"<p><a href=\"https://amzn.to/44pqItM\">FORTNITE ゲーミングヘッドセット Razer レイザー Kraken V3 X Fortnite Edition 軽量で長時間プレイでも快適な有線ゲーミングヘッドセット USB 7.1サラウンドサウンド</a></p>",
 		"<p><a href=\"https://amzn.to/3EDFzXd\">【Amazon.co.jp限定】 Logicool G PRO ゲーミングキーボード G-PKB-002LNd テンキーレス リニア 赤軸 静かなタイピング</a></p>",
+		"<p><a href=\"https://amzn.to/4d8RDfU\">ソニー ゲーミングイヤホン INZONE Buds:WF-G700N Fnatic監修</a></p>",
+		"<p><a href=\"https://amzn.to/3YqPiqw\">Anker Soundcore P40i (Bluetooth 5.3) 【完全ワイヤレスイヤホン/ウルトラノイズキャンセリング 2.0</a></p>",
+		"<p><a href=\"https://amzn.to/42QKdsE\">SteelSeries ワイヤレス ゲーミングヘッドセット ヘッドホン 軽量 ボイスチャット可能 ゲームとスマホを同時接続</a></p>",
+		"<p><a href=\"https://amzn.to/4k2BQkK\">Pulsar Gaming Gears PCMK 2HE TKL ゲーミング キーボード JIS 日本語配列 91キー 磁気スイッチ 8K Polling Rate【国内正規品】</a></p>",
 	}
 
 	disclaimer := `
