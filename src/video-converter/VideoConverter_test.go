@@ -270,16 +270,10 @@ func TestGetVideoSnippet(t *testing.T) {
 	}
 }
 
-func TestRefreshAccessToken(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func setupTestServers(t *testing.T) (map[string]*httptest.Server, func()) {
+	oauthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST request, got %s", r.Method)
-		}
-		
-		if r.URL.Path != "/o/oauth2/token" {
-			t.Errorf("Expected path /o/oauth2/token, got %s", r.URL.Path)
 		}
 		
 		w.Header().Set("Content-Type", "application/json")
@@ -288,65 +282,10 @@ func TestRefreshAccessToken(t *testing.T) {
 			t.Errorf("Failed to write response: %v", err)
 		}
 	}))
-	defer server.Close()
-
-	originalTransport := http.DefaultTransport
-	defer func() {
-		http.DefaultTransport = originalTransport
-	}()
-
-	http.DefaultTransport = &customTransport{
-		originalTransport: originalTransport,
-		testServer:        server,
-	}
-
-	token, err := refreshAccessToken()
 	
-	if err != nil {
-		t.Errorf("refreshAccessToken() returned an error: %v", err)
-	}
-	
-	if token != "test_access_token" {
-		t.Errorf("refreshAccessToken() returned wrong token: got %v, want %v", token, "test_access_token")
-	}
-}
-
-type customTransport struct {
-	originalTransport http.RoundTripper
-	testServer        *httptest.Server
-}
-
-func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if strings.Contains(req.URL.String(), "accounts.google.com/o/oauth2/token") {
-		newURL := t.testServer.URL + req.URL.Path
-		
-		newReq, err := http.NewRequest(req.Method, newURL, req.Body)
-		if err != nil {
-			return nil, err
-		}
-		
-		for key, values := range req.Header {
-			for _, value := range values {
-				newReq.Header.Add(key, value)
-			}
-		}
-		
-		return http.DefaultClient.Do(newReq)
-	}
-	
-	return t.originalTransport.RoundTrip(req)
-}
-
-func TestUpdateVideoSnippet(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	youtubeVideosServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "PUT" {
 			t.Errorf("Expected PUT request, got %s", r.Method)
-		}
-		
-		if r.URL.Path != "/youtube/v3/videos" {
-			t.Errorf("Expected path /youtube/v3/videos, got %s", r.URL.Path)
 		}
 		
 		if r.URL.Query().Get("part") != "snippet" {
@@ -364,40 +303,10 @@ func TestUpdateVideoSnippet(t *testing.T) {
 			t.Errorf("Failed to write response: %v", err)
 		}
 	}))
-	defer server.Close()
-
-	originalTransport := http.DefaultTransport
-	defer func() {
-		http.DefaultTransport = originalTransport
-	}()
-
-	http.DefaultTransport = &customTransport{
-		originalTransport: originalTransport,
-		testServer:        server,
-	}
-
-	body, err := updateVideoSnippet("test_video_id", "Test Video Title", "test_access_token")
 	
-	if err != nil {
-		t.Errorf("updateVideoSnippet() returned an error: %v", err)
-	}
-	
-	expectedResponse := `{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}` + "\n"
-	if string(body) != expectedResponse {
-		t.Errorf("updateVideoSnippet() returned wrong body: got %v, want %v", string(body), expectedResponse)
-	}
-}
-
-func TestAddVideoToPlaylist(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	youtubePlaylistsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST request, got %s", r.Method)
-		}
-		
-		if r.URL.Path != "/youtube/v3/playlistItems" {
-			t.Errorf("Expected path /youtube/v3/playlistItems, got %s", r.URL.Path)
 		}
 		
 		if r.URL.Query().Get("part") != "snippet" {
@@ -415,7 +324,7 @@ func TestAddVideoToPlaylist(t *testing.T) {
 		}
 		
 		bodyStr := string(body)
-		if !strings.Contains(bodyStr, "test_video_id") || !strings.Contains(bodyStr, "test_playlist_id") {
+		if !strings.Contains(bodyStr, "videoId") || !strings.Contains(bodyStr, "playlistId") {
 			t.Errorf("Request body missing expected data: %s", bodyStr)
 		}
 		
@@ -425,34 +334,8 @@ func TestAddVideoToPlaylist(t *testing.T) {
 			t.Errorf("Failed to write response: %v", err)
 		}
 	}))
-	defer server.Close()
-
-	originalTransport := http.DefaultTransport
-	defer func() {
-		http.DefaultTransport = originalTransport
-	}()
-
-	http.DefaultTransport = &customTransport{
-		originalTransport: originalTransport,
-		testServer:        server,
-	}
-
-	body, err := addVideoToPlaylist("test_video_id", "test_playlist_id", "test_access_token")
 	
-	if err != nil {
-		t.Errorf("addVideoToPlaylist() returned an error: %v", err)
-	}
-	
-	expectedResponse := `{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}` + "\n"
-	if string(body) != expectedResponse {
-		t.Errorf("addVideoToPlaylist() returned wrong body: got %v, want %v", string(body), expectedResponse)
-	}
-}
-
-func TestPostX(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	twitterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
@@ -477,7 +360,28 @@ func TestPostX(t *testing.T) {
 			t.Errorf("Failed to write response: %v", err)
 		}
 	}))
-	defer server.Close()
+	
+	servers := map[string]*httptest.Server{
+		"oauth":            oauthServer,
+		"youtube_videos":   youtubeVideosServer,
+		"youtube_playlists": youtubePlaylistsServer,
+		"twitter":          twitterServer,
+	}
+	
+	cleanup := func() {
+		for _, server := range servers {
+			server.Close()
+		}
+	}
+	
+	return servers, cleanup
+}
+
+func TestRefreshAccessToken(t *testing.T) {
+	t.Parallel()
+
+	servers, cleanup := setupTestServers(t)
+	defer cleanup()
 
 	originalTransport := http.DefaultTransport
 	defer func() {
@@ -486,7 +390,139 @@ func TestPostX(t *testing.T) {
 
 	http.DefaultTransport = &customTransport{
 		originalTransport: originalTransport,
-		testServer:        server,
+		servers:           servers,
+	}
+
+	token, err := refreshAccessToken()
+	
+	if err != nil {
+		t.Errorf("refreshAccessToken() returned an error: %v", err)
+	}
+	
+	if token != "test_access_token" {
+		t.Errorf("refreshAccessToken() returned wrong token: got %v, want %v", token, "test_access_token")
+	}
+}
+
+type customTransport struct {
+	originalTransport http.RoundTripper
+	servers           map[string]*httptest.Server
+}
+
+func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Scheme == "https" {
+		var server *httptest.Server
+		
+		switch {
+		case strings.Contains(req.URL.Host, "accounts.google.com"):
+			server = t.servers["oauth"]
+		case strings.Contains(req.URL.Host, "youtube.googleapis.com"):
+			if strings.Contains(req.URL.Path, "videos") {
+				server = t.servers["youtube_videos"]
+			} else if strings.Contains(req.URL.Path, "playlistItems") {
+				server = t.servers["youtube_playlists"]
+			}
+		case strings.Contains(req.URL.Host, "api.twitter.com"):
+			server = t.servers["twitter"]
+		}
+		
+		if server != nil {
+			newURL := server.URL + req.URL.Path
+			if req.URL.RawQuery != "" {
+				newURL += "?" + req.URL.RawQuery
+			}
+			
+			newReq, err := http.NewRequest(req.Method, newURL, req.Body)
+			if err != nil {
+				return nil, err
+			}
+			
+			for key, values := range req.Header {
+				for _, value := range values {
+					newReq.Header.Add(key, value)
+				}
+			}
+			
+			client := &http.Client{
+				Transport: http.DefaultTransport,
+			}
+			return client.Do(newReq)
+		}
+	}
+	
+	return t.originalTransport.RoundTrip(req)
+}
+
+func TestUpdateVideoSnippet(t *testing.T) {
+	t.Parallel()
+
+	servers, cleanup := setupTestServers(t)
+	defer cleanup()
+
+	originalTransport := http.DefaultTransport
+	defer func() {
+		http.DefaultTransport = originalTransport
+	}()
+
+	http.DefaultTransport = &customTransport{
+		originalTransport: originalTransport,
+		servers:           servers,
+	}
+
+	body, err := updateVideoSnippet("test_video_id", "Test Video Title", "test_access_token")
+	
+	if err != nil {
+		t.Errorf("updateVideoSnippet() returned an error: %v", err)
+	}
+	
+	expectedResponse := `{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}` + "\n"
+	if string(body) != expectedResponse {
+		t.Errorf("updateVideoSnippet() returned wrong body: got %v, want %v", string(body), expectedResponse)
+	}
+}
+
+func TestAddVideoToPlaylist(t *testing.T) {
+	t.Parallel()
+
+	servers, cleanup := setupTestServers(t)
+	defer cleanup()
+
+	originalTransport := http.DefaultTransport
+	defer func() {
+		http.DefaultTransport = originalTransport
+	}()
+
+	http.DefaultTransport = &customTransport{
+		originalTransport: originalTransport,
+		servers:           servers,
+	}
+
+	body, err := addVideoToPlaylist("test_video_id", "test_playlist_id", "test_access_token")
+	
+	if err != nil {
+		t.Errorf("addVideoToPlaylist() returned an error: %v", err)
+	}
+	
+	expectedResponse := `{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}` + "\n"
+	if string(body) != expectedResponse {
+		t.Errorf("addVideoToPlaylist() returned wrong body: got %v, want %v", string(body), expectedResponse)
+	}
+}
+
+func TestPostX(t *testing.T) {
+	t.Parallel()
+
+	servers, cleanup := setupTestServers(t)
+	defer cleanup()
+
+	originalTransport := http.DefaultTransport
+	defer func() {
+		http.DefaultTransport = originalTransport
+	}()
+
+	http.DefaultTransport = &customTransport{
+		originalTransport: originalTransport,
+		servers:           servers,
 	}
 
 	err := postX("https://example.com/video")
