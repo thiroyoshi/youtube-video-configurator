@@ -120,22 +120,21 @@ func getVideoSnippet(videoID string, videoTitle string) string {
 	return requestBody
 }
 
-func updateVideoSnippet(videoID string, title string, accsessToken string) ([]byte, error) {
+func updateVideoSnippet(videoID string, title string, accessToken string) ([]byte, error) {
 	url := apiEndpoint + "videos?part=snippet"
 	requestBody := getVideoSnippet(videoID, title)
 
 	req, err := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(requestBody)))
 	if err != nil {
-		return []byte{}, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Add("Authorization", "Bearer "+accsessToken)
+	req.Header.Add("Authorization", "Bearer "+accessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("failed to request to update snippet", "error", err)
-		return []byte{}, err
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
@@ -143,22 +142,20 @@ func updateVideoSnippet(videoID string, title string, accsessToken string) ([]by
 		}
 	}()
 
-	if resp.StatusCode != 200 {
-		slog.Error("failed to update snippet", "resp.Status", resp.Status)
-		return []byte{}, fmt.Errorf("failed to update snippet")
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to update snippet: status code %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("failed to parse snippet response", "error", err, "status", resp.Status)
-		return []byte{}, err
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	slog.Info("updated snippet response")
 
 	return body, nil
 }
 
-func addVideoToPlaylist(videoID string, playListId string, accsessToken string) ([]byte, error) {
+func addVideoToPlaylist(videoID string, playListId string, accessToken string) ([]byte, error) {
 	url := apiEndpoint + "playlistItems?part=snippet"
 	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoID)
 
@@ -166,7 +163,7 @@ func addVideoToPlaylist(videoID string, playListId string, accsessToken string) 
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Add("Authorization", "Bearer "+accsessToken)
+	req.Header.Add("Authorization", "Bearer "+accessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}
@@ -281,7 +278,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Refresh access token
-	accsessToken, err := refreshAccessToken()
+	accessToken, err := refreshAccessToken()
 	if err != nil {
 		slog.Error("failed to refresh token", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -346,7 +343,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	playlistID := playlistNormal
 
 	// Update video snippet
-	resp, err := updateVideoSnippet(videoID, title, accsessToken)
+	resp, err := updateVideoSnippet(videoID, title, accessToken)
 	if err != nil {
 		slog.Error("failed to update video snippet", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -357,7 +354,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add video to playlist
-	_, err = addVideoToPlaylist(videoID, playlistID, accsessToken)
+	_, err = addVideoToPlaylist(videoID, playlistID, accessToken)
 	if err != nil {
 		slog.Error("failed to add video to playlist", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
