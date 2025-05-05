@@ -410,46 +410,70 @@ type customTransport struct {
 }
 
 func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if req.URL.Scheme == "https" {
-		var server *httptest.Server
-		
-		switch {
-		case strings.Contains(req.URL.Host, "accounts.google.com"):
-			server = t.servers["oauth"]
-		case strings.Contains(req.URL.Host, "youtube.googleapis.com"):
-			if strings.Contains(req.URL.Path, "videos") {
-				server = t.servers["youtube_videos"]
-			} else if strings.Contains(req.URL.Path, "playlistItems") {
-				server = t.servers["youtube_playlists"]
-			}
-		case strings.Contains(req.URL.Host, "api.twitter.com"):
-			server = t.servers["twitter"]
+	fmt.Printf("DEBUG: Intercepting request to %s %s\n", req.Method, req.URL.String())
+	
+	var server *httptest.Server
+	var pathToUse string
+	
+	var bodyBytes []byte
+	if req.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
 		}
-		
-		if server != nil {
-			newURL := server.URL + req.URL.Path
-			if req.URL.RawQuery != "" {
-				newURL += "?" + req.URL.RawQuery
-			}
-			
-			newReq, err := http.NewRequest(req.Method, newURL, req.Body)
-			if err != nil {
-				return nil, err
-			}
-			
-			for key, values := range req.Header {
-				for _, value := range values {
-					newReq.Header.Add(key, value)
-				}
-			}
-			
-			client := &http.Client{
-				Transport: http.DefaultTransport,
-			}
-			return client.Do(newReq)
-		}
+		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
 	
+	switch {
+	case strings.Contains(req.URL.Host, "accounts.google.com") || strings.Contains(req.URL.Path, "oauth2/token"):
+		server = t.servers["oauth"]
+		pathToUse = "/"
+		fmt.Println("DEBUG: Routing to OAuth mock server")
+		
+	case strings.Contains(req.URL.Host, "youtube.googleapis.com") || strings.Contains(req.URL.Host, "www.googleapis.com"):
+		if strings.Contains(req.URL.Path, "videos") {
+			server = t.servers["youtube_videos"]
+			pathToUse = "/"
+			fmt.Println("DEBUG: Routing to YouTube Videos mock server")
+		} else if strings.Contains(req.URL.Path, "playlistItems") {
+			server = t.servers["youtube_playlists"]
+			pathToUse = "/"
+			fmt.Println("DEBUG: Routing to YouTube Playlists mock server")
+		}
+		
+	case strings.Contains(req.URL.Host, "api.twitter.com") || strings.Contains(req.URL.Path, "tweets"):
+		server = t.servers["twitter"]
+		pathToUse = "/2/tweets"
+		fmt.Println("DEBUG: Routing to Twitter mock server")
+	}
+	
+	if server != nil {
+		newURL := server.URL + pathToUse
+		if req.URL.RawQuery != "" && pathToUse == "/" {
+			newURL += "?" + req.URL.RawQuery
+		}
+		
+		newReq, err := http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			return nil, err
+		}
+		
+		for key, values := range req.Header {
+			for _, value := range values {
+				newReq.Header.Add(key, value)
+			}
+		}
+		
+		client := &http.Client{
+			Transport: &http.Transport{},
+		}
+		
+		fmt.Printf("DEBUG: Redirecting to mock server: %s\n", newURL)
+		return client.Do(newReq)
+	}
+	
+	fmt.Printf("DEBUG: No mock server found for %s, using original transport\n", req.URL.String())
 	return t.originalTransport.RoundTrip(req)
 }
 
@@ -728,54 +752,30 @@ func TestOriginalVideoConverter(t *testing.T) {
 	}
 }
 
-type multiServerTransport struct {
-	originalTransport http.RoundTripper
-	tokenServer       *httptest.Server
-	youtubeServer     *httptest.Server
-	twitterServer     *httptest.Server
-}
+func TestOriginalVideoConverter(t *testing.T) {
+	t.Parallel()
 
-func (t *multiServerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	var newReq *http.Request
-	var err error
-	
-	var bodyBytes []byte
-	if req.Body != nil {
-		bodyBytes, err = io.ReadAll(req.Body)
-		if err != nil {
-			return nil, err
-		}
-		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	servers, cleanup := setupTestServers(t)
+	defer cleanup()
+
+	originalTransport := http.DefaultTransport
+	defer func() {
+		http.DefaultTransport = originalTransport
+	}()
+
+	http.DefaultTransport = &customTransport{
+		originalTransport: originalTransport,
+		servers:           servers,
 	}
+
+	req := httptest.NewRequest("POST", "/", strings.NewReader(`{"url": "https://www.youtube.com/watch?v=test_video_id", "title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}`))
+	req.Header.Add("X-GABA-Header", "gabafortnite")
 	
-	if strings.Contains(req.URL.String(), "accounts.google.com") || strings.Contains(req.URL.String(), "oauth2/token") {
-		newURL := t.tokenServer.URL
-		newReq, err = http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
-	} else if strings.Contains(req.URL.String(), "youtube.googleapis.com") || strings.Contains(req.URL.String(), "youtube/v3") {
-		newURL := t.youtubeServer.URL
-		if req.URL.RawQuery != "" {
-			newURL += "?" + req.URL.RawQuery
-		}
-		newReq, err = http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
-	} else if strings.Contains(req.URL.String(), "api.twitter.com") || strings.Contains(req.URL.String(), "tweets") {
-		newURL := t.twitterServer.URL
-		newReq, err = http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
-	} else {
-		return t.originalTransport.RoundTrip(req)
-	}
+	rr := httptest.NewRecorder()
 	
-	if err != nil {
-		return nil, err
-	}
+	videoConverter(rr, req)
 	
-	for key, values := range req.Header {
-		for _, value := range values {
-			newReq.Header.Add(key, value)
-		}
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
-	
-	client := &http.Client{
-		Transport: t.originalTransport,
-	}
-	return client.Do(newReq)
 }
