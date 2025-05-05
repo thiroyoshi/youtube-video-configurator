@@ -73,20 +73,24 @@ func videoConverterWithDeps(deps Dependencies) http.HandlerFunc {
 
 		accessToken, err := deps.TokenRefresher.RefreshAccessToken()
 		if err != nil {
-			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
+			if _, err := fmt.Fprint(w, err); err != nil {
+				fmt.Printf("failed to write error to response: %v\n", err)
+			}
 			return
 		}
 
 		body, err := io.ReadAll(r.Body)
 		defer func() {
 			if cerr := r.Body.Close(); cerr != nil {
-				fmt.Println("failed to close request body:", cerr)
+				fmt.Printf("failed to close request body: %v\n", cerr)
 			}
 		}()
 		if err != nil {
-			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
+			if _, err := fmt.Fprint(w, err); err != nil {
+				fmt.Printf("failed to write error to response: %v\n", err)
+			}
 			return
 		}
 		fmt.Println("body:", string(body))
@@ -94,16 +98,21 @@ func videoConverterWithDeps(deps Dependencies) http.HandlerFunc {
 		jsonBytes := ([]byte)(body)
 		data := new(FunctionsRequest)
 		if err = json.Unmarshal(jsonBytes, data); err != nil {
-			fmt.Println(err)
 			w.WriteHeader(http.StatusBadRequest)
+			if _, err := fmt.Fprint(w, err); err != nil {
+				fmt.Printf("failed to write error to response: %v\n", err)
+			}
 			return
 		}
 		fmt.Println("data:", data)
 
 		dataStrings := strings.Split(data.URL, "?v=")
 		if len(dataStrings) != 2 {
-			fmt.Println("invalid url:", data.URL)
+			errMsg := fmt.Sprintf("invalid url: %s", data.URL)
 			w.WriteHeader(http.StatusBadRequest)
+			if _, err := fmt.Fprint(w, errMsg); err != nil {
+				fmt.Printf("failed to write error to response: %v\n", err)
+			}
 			return
 		}
 		videoID := dataStrings[1]
@@ -115,40 +124,34 @@ func videoConverterWithDeps(deps Dependencies) http.HandlerFunc {
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			if _, err := fmt.Fprint(w, err); err != nil {
-				fmt.Println("failed to write error to response:", err)
+				fmt.Printf("failed to write error to response: %v\n", err)
 			}
 			return
 		}
 
 		_, err = deps.PlaylistManager.AddVideoToPlaylist(videoID, playlistID, accessToken)
 		if err != nil {
-			fmt.Println("failed to add video to playlist:", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			if _, err := fmt.Fprint(w, err); err != nil {
-				fmt.Println("failed to write error to response:", err)
+				fmt.Printf("failed to write error to response: %v\n", err)
 			}
 			return
 		}
 
 		err = deps.SocialPoster.PostX(data.URL)
 		if err != nil {
-			fmt.Println("failed to post to X:", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			if _, err := fmt.Fprint(w, err); err != nil {
-				fmt.Println("failed to write error to response:", err)
+				fmt.Printf("failed to write error to response: %v\n", err)
 			}
 			return
 		}
 
-		if _, err = w.Write(resp); err != nil {
-			fmt.Println("failed to write response:", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			if _, err := fmt.Fprint(w, err); err != nil {
-				fmt.Println("failed to write error to response:", err)
-			}
-			return
-		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		if _, err = w.Write(resp); err != nil {
+			fmt.Printf("failed to write response: %v\n", err)
+		}
 	}
 }
 
@@ -204,7 +207,9 @@ func setupTestServers(t *testing.T) (map[string]*httptest.Server, func()) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`))
+		if _, err := w.Write([]byte(`{"access_token": "test_access_token", "expires_in": 3600, "token_type": "Bearer"}`)); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 
 	youtubeVideosServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -223,7 +228,9 @@ func setupTestServers(t *testing.T) (map[string]*httptest.Server, func()) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`))
+		if _, err := w.Write([]byte(`{"id": "test_video_id", "snippet": {"title": "Test Video Title"}}`)); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 
 	youtubePlaylistsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -242,7 +249,9 @@ func setupTestServers(t *testing.T) (map[string]*httptest.Server, func()) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`))
+		if _, err := w.Write([]byte(`{"id": "test_item_id", "snippet": {"playlistId": "test_playlist_id", "resourceId": {"videoId": "test_video_id"}}}`)); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 
 	twitterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -256,7 +265,9 @@ func setupTestServers(t *testing.T) (map[string]*httptest.Server, func()) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`))
+		if _, err := w.Write([]byte(`{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`)); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 
 	servers := map[string]*httptest.Server{
