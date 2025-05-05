@@ -55,10 +55,10 @@ func refreshAccessToken() (string, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	slog.Info("refreshAccessToken response", "status", resp.Status)
 	if err != nil {
 		return "", err
 	}
+	slog.Info("refreshAccessToken response", "status", resp.Status)
 
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
