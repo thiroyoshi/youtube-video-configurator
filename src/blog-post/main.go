@@ -334,7 +334,17 @@ func addContentFormat(content string) string {
 	links := []string{
 		"<p><a href=\"https://amzn.to/4251ZYM\">【純正品】DualSense ワイヤレスコントローラー \"フォートナイト\" リミテッドエディション（CFI-ZCT1JZ4）</a></p>",
 		"<p><a href=\"https://amzn.to/43IeMDf\"> ガレリア ゲーミングPC GALLERIA RM5R-R46 RTX 4060 Ryzen 5 4500 メモリ32GB SSD1TB Windows11</a></p>",
-		"<a href=\"https://amzn.to/44z6bmP\">【任天堂公式ライセンス商品】PowerA エンハンスド・ワイヤレスコントローラー for Nintendo Switch 【国内正規品2年保証】</a>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">【任天堂公式ライセンス商品】PowerA エンハンスド・ワイヤレスコントローラー for Nintendo Switch 【国内正規品2年保証】</a></p>",
+		"<p><a href=\"https://amzn.to/44Wiw4l\">【任天堂公式ライセンス商品】PowerA 有線イヤホン 1.3ｍ for Nintendo Switch - フォートナイト ピーリー【国内正規品２年保証】【購入特典】アイテム用コード「複雑なんだ」（エモート）付</a></p>",
+		"<p><a href=\"https://amzn.to/3YtfDnL\">Elgato Stream Deck MK.2 【並行輸入品】</a></p>",
+		"<p><a href=\"https://amzn.to/4d2CqN3\">長尾製作所 マウス/ゲーミングマウスを美しく飾れる専用ディスプレイ台 NB-MOUSE-DP03</a></p>",
+		"<p><a href=\"https://amzn.to/4mfOn6y\">エレコム ウェットティッシュクリーナー 日本製 液晶用 80枚入り 液晶画面にやさしいノンアルコールタイプ WC-DP80N4</a></p>",
+		"<p><a href=\"https://amzn.to/43ozFBF\">Anker Magnetic Cable Holder マグネット式 ケーブルホルダー ライトニングケーブル USB-C Micro USB ケーブル 他対応 デスク周り 便利グッズ (ブルー)</a></p>",
+		"<p><a href=\"https://amzn.to/3GyVsyK\">BenQ ScreenBar Halo モニターライト スクリーンバー ハロー USBライト デスクライト [無線リモコン 自動調光 間接照明モード 高演色性]</a></p>",
+		"<p><a href=\"https://amzn.to/3GG0w4f\">FORTNITE ゲーミングマウス Razer レイザー DeathAdder V3 Pro Fortnite Edition ワイヤレス 63g</a></p>",
+		"<p><a href=\"https://amzn.to/4jHBekY\">FORTNITE ゲーミングキーボード Razer レイザー BlackWidow V4 X Fortnite Edition</a></p>",
+		"<p><a href=\"https://amzn.to/44pqItM\">FORTNITE ゲーミングヘッドセット Razer レイザー Kraken V3 X Fortnite Edition 軽量で長時間プレイでも快適な有線ゲーミングヘッドセット USB 7.1サラウンドサウンド</a></p>",
+		"<p><a href=\"https://amzn.to/3EDFzXd\">【Amazon.co.jp限定】 Logicool G PRO ゲーミングキーボード G-PKB-002LNd テンキーレス リニア 赤軸 静かなタイピング</a></p>",
 	}
 
 	disclaimer := `
