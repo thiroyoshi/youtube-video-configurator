@@ -259,8 +259,8 @@ func postX(url string) error {
 	fmt.Println("レスポンスステータス:", resp.Status)
 	fmt.Println("レスポンスボディ:", string(body))
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Twitter API returned non-200 status code: %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("Twitter API returned unexpected status code: %d", resp.StatusCode)
 	}
 
 	return nil

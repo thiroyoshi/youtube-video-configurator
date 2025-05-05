@@ -1,6 +1,7 @@
 package videoconverter
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -457,7 +458,7 @@ func TestPostX(t *testing.T) {
 		}
 		
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusCreated) // Twitter API returns 201 Created for successful tweets
 		fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`)
 	}))
 	defer server.Close()
@@ -638,7 +639,7 @@ func TestOriginalVideoConverter(t *testing.T) {
 
 	twitterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusCreated) // Twitter API returns 201 Created for successful tweets
 		fmt.Fprintln(w, `{"data": {"id": "1234567890", "text": "Tweet posted successfully"}}`)
 	}))
 	defer twitterServer.Close()
@@ -681,10 +682,20 @@ func (t *multiServerTransport) RoundTrip(req *http.Request) (*http.Response, err
 	if strings.Contains(req.URL.String(), "accounts.google.com/o/oauth2/token") {
 		newURL := t.tokenServer.URL + req.URL.Path
 		newReq, err = http.NewRequest(req.Method, newURL, req.Body)
-	} else if strings.Contains(req.URL.String(), "youtube/v3") {
-		newURL := t.youtubeServer.URL + req.URL.Path + "?" + req.URL.RawQuery
-		newReq, err = http.NewRequest(req.Method, newURL, req.Body)
-	} else if strings.Contains(req.URL.String(), "twitter.com") {
+	} else if strings.Contains(req.URL.String(), "youtube.googleapis.com/youtube/v3") {
+		newURL := t.youtubeServer.URL + req.URL.Path
+		if req.URL.RawQuery != "" {
+			newURL += "?" + req.URL.RawQuery
+		}
+		
+		var bodyBytes []byte
+		if req.Body != nil {
+			bodyBytes, _ = io.ReadAll(req.Body)
+			req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		}
+		
+		newReq, err = http.NewRequest(req.Method, newURL, bytes.NewBuffer(bodyBytes))
+	} else if strings.Contains(req.URL.String(), "api.twitter.com") {
 		newURL := t.twitterServer.URL + req.URL.Path
 		newReq, err = http.NewRequest(req.Method, newURL, req.Body)
 	} else {
@@ -701,5 +712,8 @@ func (t *multiServerTransport) RoundTrip(req *http.Request) (*http.Response, err
 		}
 	}
 	
-	return http.DefaultClient.Do(newReq)
+	client := &http.Client{
+		Transport: t.originalTransport,
+	}
+	return client.Do(newReq)
 }
