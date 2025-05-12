@@ -25,6 +25,7 @@ const (
 	youtubeVideoUploadScope = "https://www.googleapis.com/auth/youtube.upload"
 	playlistNormal          = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
 	playlistShort           = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
+	fortniteSeason          = "C6S3"
 )
 
 // FunctionsRequest はCloud Functionsへのリクエストデータを表す構造体です。
@@ -83,8 +84,9 @@ func refreshAccessToken() (string, error) {
 
 func getVideoSnippet(videoID string, videoTitle string) string {
 	videoDescription := `
-	 GABAのFORTNITEプレイログです。
-	よかったら高評価とチャンネル登録お願いします！一緒にフォートナイトを盛り上げましょう！
+	 GABAのフォートナイトのプレイログ（無編集・無実況）です！
+	「ナイス！」「GG！」と思ったら高評価＆チャンネル登録をお願いします！
+	一緒にフォートナイトを盛り上げていきましょう！
 	
 	【プレイリスト集】
 	▼ ノーマル/ノーカット無編集
@@ -93,10 +95,10 @@ func getVideoSnippet(videoID string, videoTitle string) string {
 	https://www.youtube.com/playlist?list=PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O
 
 	=========================================
-	▼ X（旧Twitter）やってます！フォローお願いします！フォトナのアカウントなら１００％フォロバします！
-	https://twitter.com/GABA_FORTNITE
+	▼ Xもやってます！フォローお願いします！フォトナのアカウントなら100%フォロバします！
+	https://x.com/GABA_FORTNITE
 
-	#FORTNITE #フォートナイト #PS5share #gameplay
+	#Fortnite #gameplay #フォートナイト #プレイ動画 #ps5 #ps5Share
 	`
 
 	categoryID := "20"
@@ -108,7 +110,7 @@ func getVideoSnippet(videoID string, videoTitle string) string {
 				"title": "%s",
 				"description": "%s",
 				"categoryId": "%s",
-				"tags": ["Fortnite", "フォートナイト", "gameplay", "プレイ動画"]
+				"tags": ["Fortnite", "フォートナイト", "gameplay", "プレイ動画", "ps5", "ps5Share"]
 			}
 		}`,
 		videoID,
@@ -339,7 +341,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().In(jst)
 
 	// Set video title and playlistId
-	title := fmt.Sprintf("GABAのプレイログ %s #Fortnite #gameplay #フォートナイト #プレイ動画 #ps5", now.Format("2006-01-02 15:04:05"))
+	title := fmt.Sprintf("No-Cut Fortnite %s Gameplay - GABA's Close Calls %s #Fortnite #gameplay #フォートナイト #プレイ動画 #ps5 #ps5Share", fortniteSeason, now.Format("2006-01-02 15:04:05"))
 	playlistID := playlistNormal
 
 	// Update video snippet
