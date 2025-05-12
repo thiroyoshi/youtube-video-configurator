@@ -1,8 +1,6 @@
 module thiroyoshi.com/blog-post
 
-go 1.21
-
-toolchain go1.21.3
+go 1.24.0
 
 require github.com/openai/openai-go v0.1.0-beta.10
 

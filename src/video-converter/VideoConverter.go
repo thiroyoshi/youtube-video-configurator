@@ -84,19 +84,19 @@ func refreshAccessToken() (string, error) {
 
 func getVideoSnippet(videoID string, videoTitle string) string {
 	videoDescription := `
-	 GABAのフォートナイトのプレイログ（無編集・無実況）です！
+	 GABAのフォートナイトのプレイログです。日々のプレイをそのままアップロードしています。
 	「ナイス！」「GG！」と思ったら高評価＆チャンネル登録をお願いします！
 	一緒にフォートナイトを盛り上げていきましょう！
 	
+	▼ Follow me! フォートナイト関連のアカウントなら100%フォロバします！
+	https://x.com/GABA_FORTNITE
+
+	=========================================
 	【プレイリスト集】
 	▼ ノーマル/ノーカット無編集
 	https://www.youtube.com/playlist?list=PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq
 	▼ おもしろショート
 	https://www.youtube.com/playlist?list=PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O
-
-	=========================================
-	▼ Xもやってます！フォローお願いします！フォトナのアカウントなら100%フォロバします！
-	https://x.com/GABA_FORTNITE
 
 	#Fortnite #gameplay #フォートナイト #プレイ動画 #ps5 #ps5Share
 	`
@@ -110,7 +110,7 @@ func getVideoSnippet(videoID string, videoTitle string) string {
 				"title": "%s",
 				"description": "%s",
 				"categoryId": "%s",
-				"tags": ["Fortnite", "フォートナイト", "gameplay", "プレイ動画", "ps5", "ps5Share"]
+				"tags": ["Fortnite", "フォートナイト", "gameplay", "プレイ動画", "ps5", "ps5Share"],
 			}
 		}`,
 		videoID,
@@ -145,6 +145,14 @@ func updateVideoSnippet(videoID string, title string, accessToken string) ([]byt
 	}()
 
 	if resp.StatusCode != http.StatusOK {
+		// Read the response body for more details
+		body, _ := io.ReadAll(resp.Body)
+		defer func() {
+			if cerr := resp.Body.Close(); cerr != nil {
+				slog.Error("failed to close response body", "error", cerr)
+			}
+		}()
+		slog.Error("failed to update snippet", "status", resp.Status, "body", string(body))
 		return nil, fmt.Errorf("failed to update snippet: status code %d", resp.StatusCode)
 	}
 
@@ -265,6 +273,43 @@ func postX(url string) error {
 	return nil
 }
 
+func postMessageToSlack(message string) error {
+	slackURL := "https://hooks.slack.com/services/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"
+	slackPayload := map[string]string{"text": message}
+	slackPayloadBytes, err := json.Marshal(slackPayload)
+	if err != nil {
+		fmt.Println("failed to marshal slack payload", "error", err)
+		return err
+	}
+
+	req, err := http.NewRequest("POST", slackURL, bytes.NewBuffer(slackPayloadBytes))
+	if err != nil {
+		fmt.Println("failed to create slack request", "error", err)
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("failed to send slack request", "error", err)
+		return err
+	}
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Println("failed to close slack response body", "error", cerr)
+		}
+	}()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		fmt.Printf("slack returned non-2xx status: %d\n", resp.StatusCode)
+		return fmt.Errorf("slack returned non-2xx status: %d", resp.StatusCode)
+	}
+
+	fmt.Println("successfully posted message to slack")
+	return nil
+}
+
 // videoConverter is an HTTP Cloud Function.
 func videoConverter(w http.ResponseWriter, r *http.Request) {
 	// Check http method
@@ -341,7 +386,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().In(jst)
 
 	// Set video title and playlistId
-	title := fmt.Sprintf("No-Cut Fortnite %s Gameplay - GABA's Close Calls %s #Fortnite #gameplay #フォートナイト #プレイ動画 #ps5 #ps5Share", fortniteSeason, now.Format("2006-01-02 15:04:05"))
+	title := fmt.Sprintf("No-Cut Fortnite %s GABA's Gameplay %s #Fortnite #gameplay #フォートナイト #ps5", fortniteSeason, now.Format("2006-01-02 15:04:05"))
 	playlistID := playlistNormal
 
 	// Update video snippet
@@ -370,6 +415,17 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	err = postX(data.URL)
 	if err != nil {
 		slog.Error("failed to post to X", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		if _, err := fmt.Fprint(w, err); err != nil {
+			slog.Error("failed to write error response", "error", err)
+		}
+		return
+	}
+
+	// Post to Slack incoming webhook
+	message := fmt.Sprintf("GABAのフォートナイトのプレイ動画をYouTubeにアップロードしました\n%s\n%s", title, data.URL)
+	if err := postMessageToSlack(message); err != nil {
+		slog.Error("failed to post message to Slack", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := fmt.Fprint(w, err); err != nil {
 			slog.Error("failed to write error response", "error", err)
