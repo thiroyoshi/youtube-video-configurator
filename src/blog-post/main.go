@@ -337,19 +337,19 @@ func addContentFormat(content string) string {
 		"<p><a href=\"https://amzn.to/43IeMDf\"> ガレリア ゲーミングPC GALLERIA RM5R-R46 RTX 4060 Ryzen 5 4500 メモリ32GB SSD1TB Windows11</a></p>",
 		"<p><a href=\"https://amzn.to/44z6bmP\">【任天堂公式ライセンス商品】PowerA エンハンスド・ワイヤレスコントローラー for Nintendo Switch 【国内正規品2年保証】</a></p>",
 		"<p><a href=\"https://amzn.to/44Wiw4l\">【任天堂公式ライセンス商品】PowerA 有線イヤホン 1.3ｍ for Nintendo Switch - フォートナイト ピーリー【国内正規品２年保証】【購入特典】アイテム用コード「複雑なんだ」（エモート）付</a></p>",
-		"<p><a href=\"https://amzn.to/3YtfDnL\">Elgato Stream Deck MK.2 【並行輸入品】</a></p>",
-		"<p><a href=\"https://amzn.to/4d2CqN3\">長尾製作所 マウス/ゲーミングマウスを美しく飾れる専用ディスプレイ台 NB-MOUSE-DP03</a></p>",
-		"<p><a href=\"https://amzn.to/4mfOn6y\">エレコム ウェットティッシュクリーナー 日本製 液晶用 80枚入り 液晶画面にやさしいノンアルコールタイプ WC-DP80N4</a></p>",
-		"<p><a href=\"https://amzn.to/43ozFBF\">Anker Magnetic Cable Holder マグネット式 ケーブルホルダー ライトニングケーブル USB-C Micro USB ケーブル 他対応 デスク周り 便利グッズ (ブルー)</a></p>",
-		"<p><a href=\"https://amzn.to/3GyVsyK\">BenQ ScreenBar Halo モニターライト スクリーンバー ハロー USBライト デスクライト [無線リモコン 自動調光 間接照明モード 高演色性]</a></p>",
-		"<p><a href=\"https://amzn.to/3GG0w4f\">FORTNITE ゲーミングマウス Razer レイザー DeathAdder V3 Pro Fortnite Edition ワイヤレス 63g</a></p>",
-		"<p><a href=\"https://amzn.to/4jHBekY\">FORTNITE ゲーミングキーボード Razer レイザー BlackWidow V4 X Fortnite Edition</a></p>",
-		"<p><a href=\"https://amzn.to/44pqItM\">FORTNITE ゲーミングヘッドセット Razer レイザー Kraken V3 X Fortnite Edition 軽量で長時間プレイでも快適な有線ゲーミングヘッドセット USB 7.1サラウンドサウンド</a></p>",
-		"<p><a href=\"https://amzn.to/3EDFzXd\">【Amazon.co.jp限定】 Logicool G PRO ゲーミングキーボード G-PKB-002LNd テンキーレス リニア 赤軸 静かなタイピング</a></p>",
-		"<p><a href=\"https://amzn.to/4d8RDfU\">ソニー ゲーミングイヤホン INZONE Buds:WF-G700N Fnatic監修</a></p>",
-		"<p><a href=\"https://amzn.to/3YqPiqw\">Anker Soundcore P40i (Bluetooth 5.3) 【完全ワイヤレスイヤホン/ウルトラノイズキャンセリング 2.0</a></p>",
-		"<p><a href=\"https://amzn.to/42QKdsE\">SteelSeries ワイヤレス ゲーミングヘッドセット ヘッドホン 軽量 ボイスチャット可能 ゲームとスマホを同時接続</a></p>",
-		"<p><a href=\"https://amzn.to/4k2BQkK\">Pulsar Gaming Gears PCMK 2HE TKL ゲーミング キーボード JIS 日本語配列 91キー 磁気スイッチ 8K Polling Rate【国内正規品】</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">Elgato Stream Deck MK.2 【並行輸入品】</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">長尾製作所 マウス/ゲーミングマウスを美しく飾れる専用ディスプレイ台 NB-MOUSE-DP03</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">エレコム ウェットティッシュクリーナー 日本製 液晶用 80枚入り 液晶画面にやさしいノンアルコールタイプ WC-DP80N4</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">Anker Magnetic Cable Holder マグネット式 ケーブルホルダー ライトニングケーブル USB-C Micro USB ケーブル 他対応 デスク周り 便利グッズ (ブルー)</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">BenQ ScreenBar Halo モニターライト スクリーンバー ハロー USBライト デスクライト [無線リモコン 自動調光 間接照明モード 高演色性]</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">FORTNITE ゲーミングマウス Razer レイザー DeathAdder V3 Pro Fortnite Edition ワイヤレス 63g</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">FORTNITE ゲーミングキーボード Razer レイザー BlackWidow V4 X Fortnite Edition</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">FORTNITE ゲーミングヘッドセット Razer レイザー Kraken V3 X Fortnite Edition 軽量で長時間プレイでも快適な有線ゲーミングヘッドセット USB 7.1サラウンドサウンド</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">【Amazon.co.jp限定】 Logicool G PRO ゲーミングキーボード G-PKB-002LNd テンキーレス リニア 赤軸 静かなタイピング</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">ソニー ゲーミングイヤホン INZONE Buds:WF-G700N Fnatic監修</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">Anker Soundcore P40i (Bluetooth 5.3) 【完全ワイヤレスイヤホン/ウルトラノイズキャンセリング 2.0</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">SteelSeries ワイヤレス ゲーミングヘッドセット ヘッドホン 軽量 ボイスチャット可能 ゲームとスマホを同時接続</a></p>",
+		"<p><a href=\"https://amzn.to/44z6bmP\">Pulsar Gaming Gears PCMK 2HE TKL ゲーミング キーボード JIS 日本語配列 91キー 磁気スイッチ 8K Polling Rate【国内正規品】</a></p>",
 	}
 
 	disclaimer := `
@@ -367,7 +367,7 @@ func addContentFormat(content string) string {
 	return hello + content + links[index] + disclaimer
 }
 
-func post(title, content string) {
+func post(title, content string) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
 		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
@@ -390,7 +390,7 @@ func post(title, content string) {
 	xmlData, err := xml.MarshalIndent(entry, "", "  ")
 	if err != nil {
 		fmt.Println("XML エンコードエラー:", err)
-		os.Exit(1)
+		return "", err
 	}
 
 	xmlWithHeader := append([]byte(xml.Header), xmlData...)
@@ -401,7 +401,7 @@ func post(title, content string) {
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(xmlWithHeader))
 	if err != nil {
 		fmt.Println("リクエスト作成エラー:", err)
-		os.Exit(1)
+		return "", err
 	}
 
 	// ヘッダー設定
@@ -413,7 +413,7 @@ func post(title, content string) {
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("リクエスト送信エラー:", err)
-		os.Exit(1)
+		return "", err
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
@@ -423,6 +423,52 @@ func post(title, content string) {
 
 	// 結果を表示
 	fmt.Println("ステータスコード:", resp.Status)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		fmt.Printf("はてなブログ API エラー: %d\n", resp.StatusCode)
+		return "", fmt.Errorf("はてなブログ API エラー: %d", resp.StatusCode)
+	}
+
+	entryURL := resp.Header.Get("Location")
+	fmt.Println("記事URL:", entryURL)
+
+	return entryURL, nil
+}
+
+func postMessageToSlack(message string) error {
+	slackURL := "https://hooks.slack.com/services/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"
+	slackPayload := map[string]string{"text": message}
+	slackPayloadBytes, err := json.Marshal(slackPayload)
+	if err != nil {
+		fmt.Println("failed to marshal slack payload", "error", err)
+		return err
+	}
+
+	req, err := http.NewRequest("POST", slackURL, bytes.NewBuffer(slackPayloadBytes))
+	if err != nil {
+		fmt.Println("failed to create slack request", "error", err)
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("failed to send slack request", "error", err)
+		return err
+	}
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Println("failed to close slack response body", "error", cerr)
+		}
+	}()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		fmt.Printf("slack returned non-2xx status: %d\n", resp.StatusCode)
+		return fmt.Errorf("slack returned non-2xx status: %d", resp.StatusCode)
+	}
+
+	fmt.Println("successfully posted message to slack")
+	return nil
 }
 
 // blogPost is an HTTP Cloud Function.
@@ -444,10 +490,18 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 
 	summaries := getSummaries(articles, 10, now)
 	title, content := generatePostByArticles(summaries, now)
+	url, err := post(title, content)
+	if err != nil {
+		fmt.Println("はてなブログへの投稿に失敗:", err)
+		return
+	}
 
-	fmt.Println(title, content)
-
-	post(title, content)
+	message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
+	err = postMessageToSlack(message)
+	if err != nil {
+		fmt.Println("failed to post message to slack", "error", err)
+		return
+	}
 
 }
 
