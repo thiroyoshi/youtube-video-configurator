@@ -9,7 +9,7 @@ on:
 
 jobs:
   golangci-lint:
-    name: lint
+    name: lint go
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v4
@@ -39,7 +39,7 @@ jobs:
           args: --config=../../configs/.golangci.yaml -v
 
   unit-test:
-    name: test
+    name: test go
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v4
@@ -56,7 +56,7 @@ jobs:
         run: go test -v -parallel 4 -cover ./...
 
   trivy:
-    name: trivy
+    name: scan IaC config
     runs-on: ubuntu-latest
     steps:
 
