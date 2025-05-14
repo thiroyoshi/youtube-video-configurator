@@ -1,0 +1,38 @@
+resource "google_cloudfunctions2_function" "convert_starter" {
+  name        = "convert-starter"
+  location    = var.region
+  build_config {
+    runtime     = "go123"
+    entry_point = "convertStarter"
+    source {
+      storage_source {
+        bucket = var.source_bucket
+        object = "convert-starter.zip"
+      }
+    }
+  }
+  service_config {
+    service_account_email = google_service_account.function_sa.email
+    environment_variables = {
+      GOOGLE_CLOUD_PROJECT = var.project_id
+    }
+    min_instance_count = 0
+    max_instance_count = 1
+    available_memory    = "256M"
+    timeout_seconds     = 60
+    ingress_settings    = "ALLOW_ALL"
+  }
+  event_trigger {
+    trigger_region = var.region
+    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic   = google_pubsub_topic.convert_starter_schedule_topic.id
+  }
+}
+
+resource "google_cloudfunctions2_function_iam_member" "invoker" {
+  project        = google_cloudfunctions2_function.convert_starter.project
+  location       = google_cloudfunctions2_function.convert_starter.location
+  cloud_function = google_cloudfunctions2_function.convert_starter.name
+  role           = "roles/cloudfunctions.invoker"
+  member         = "allUsers"
+}

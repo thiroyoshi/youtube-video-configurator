@@ -9,6 +9,14 @@
 - `terraform.tfvars` : 変数値（プロジェクトIDやバケット名など）
 - `outputs.tf` : 出力値
 
+# infra ディレクトリ構成
+
+- main.tf: リソース定義
+- provider.tf: プロバイダー・Terraform設定
+- variables.tf: 変数定義
+- outputs.tf: アウトプット定義
+- terraform.tf: 空ファイル（標準構成用）
+
 ## 必要な事前準備
 - GCPプロジェクト作成済み
 - Cloud Functions, Cloud Build, Pub/Sub, IAM, Storage API有効化済み
@@ -26,6 +34,24 @@ terraform init
 terraform apply
 ```
 
+## デプロイ方法
+
+1. 変数ファイル（terraform.tfvarsなど）を用意
+2. `terraform init`
+3. `terraform apply`
+
 ## 注意
 - `terraform.tfvars`の`<YOUR_PROJECT_ID>`や`<YOUR_SOURCE_BUCKET>`等は適宜書き換えてください。
 - Cloud Buildの自動デプロイとTerraform管理の両立には注意してください（競合しないように運用設計を）。
+
+
+## Git Bashでは環境変数を通す必要がある
+```
+export PATH=$PATH:/e/development/bin/terraform
+```
+
+gcloud auth application-default login
+
+cd src/convert-starter
+zip -r ../../artifacts/convert-starter.zip .
+gsutil cp ../../artifacts/convert-starter.zip gs://video-converter-src-bucket/convert-starter.zip

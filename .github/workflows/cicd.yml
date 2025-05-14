@@ -55,7 +55,25 @@ jobs:
         working-directory: src/video-converter
         run: go test -v -parallel 4 -cover ./...
 
-        # deploy:
+  // trivyでterraformの脆弱性をチェックする
+  trivy:
+    name: trivy
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Install trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Run trivy
+        run: |
+          trivy fs --security-checks vuln --ignore-unfixed ./
+
+
+    # deploy:
   #   name: deploy
   #   needs: golangci
   #   runs-on: ubuntu-latest

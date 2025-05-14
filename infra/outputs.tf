@@ -1,13 +1,15 @@
 # outputs.tf
+# 必要なアウトプットがあればここに記述
+
 output "function_name" {
-  value = google_cloudfunctions2_function.video_converter.name
+  value = module.convert-starter.function_name
 }
 
 output "function_url" {
-  value = google_cloudfunctions2_function.video_converter.service_config[0].uri
+  value = module.convert-starter.function_url
   description = "The HTTPS endpoint of the deployed Cloud Function."
 }
 
 output "service_account_email" {
-  value = google_service_account.function_sa.email
+  value = module.convert-starter.service_account_email
 }
