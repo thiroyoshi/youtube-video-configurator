@@ -58,6 +58,7 @@ resource "time_sleep" "wait_for_scheduler_api" {
 module "convert-starter" {
   source        = "./convert-starter"
   project_id    = var.project_id
+  project_number = var.project_number
   region        = var.region
   source_bucket = var.source_bucket
   depends_on = [time_sleep.wait_for_scheduler_api, google_project_service.pubsub]
