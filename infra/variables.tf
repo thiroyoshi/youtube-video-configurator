@@ -17,3 +17,9 @@ variable "source_bucket" {
   type        = string
   default     = "video-converter-src-bucket"
 }
+
+variable "project_number" {
+  description = "GCP Project Number"
+  type        = string
+  default     = "589350762095"
+}

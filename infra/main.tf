@@ -9,6 +9,12 @@ resource "google_project_service" "cloud_scheduler" {
   depends_on = [google_project_service.serviceusage]
 }
 
+resource "google_project_service" "pubsub" {
+  project = var.project_id
+  service = "pubsub.googleapis.com"
+  depends_on = [google_project_service.serviceusage]
+}
+
 resource "time_sleep" "wait_for_scheduler_api" {
   depends_on = [google_project_service.cloud_scheduler]
   create_duration = "30s"
@@ -31,8 +37,8 @@ module "convert-starter" {
   project_id    = var.project_id
   region        = var.region
   source_bucket = var.source_bucket
-
-  depends_on = [time_sleep.wait_for_scheduler_api]
+  project_number = var.project_number
+  depends_on = [time_sleep.wait_for_scheduler_api, google_project_service.pubsub]
 }
 
 module "video-converter" {
