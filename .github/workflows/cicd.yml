@@ -24,6 +24,13 @@ jobs:
           working-directory: src/video-converter
           args: --config=../../configs/.golangci.yaml -v
 
+      - name: lint converter-starter
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          working-directory: src/convert-starter
+          args: --config=../../configs/.golangci.yaml -v
+
       - name: lint blog-post
         uses: golangci/golangci-lint-action@v7
         with:
