@@ -1,11 +1,6 @@
 
 steps:
   - name: 'gcr.io/cloud-builders/zip'
-    id: 'Zip Go Source'
-    dir: src/video-converter
-    args: ['-r', '../../artifacts/video-converter.zip', '.']
-
-  - name: 'gcr.io/cloud-builders/zip'
     id: 'Zip Source'
     dir: src/convert-starter
     args: ['-r', '../../artifacts/convert-starter.zip', '.']
