@@ -1,9 +1,13 @@
-
 steps:
-  - name: 'gcr.io/cloud-builders/zip'
+  - name: 'gcr.io/cloud-builders/ubuntu'
     id: 'Zip Source'
     dir: src/convert-starter
-    args: ['-r', '../../artifacts/convert-starter.zip', '.']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        apt-get update && apt-get install -y zip
+        zip -r ../../artifacts/convert-starter.zip .
 
   - name: 'gcr.io/cloud-builders/gsutil'
     id: 'Upload to GCS'
