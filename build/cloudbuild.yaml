@@ -1,0 +1,42 @@
+steps:
+  - name: 'ubuntu'
+    id: 'Create Artifacts Directory'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        mkdir -p artifacts
+        echo "Created artifacts directory"
+
+  - name: 'ubuntu'
+    id: 'Zip Source'
+    dir: src/${_FUNCTION_NAME}
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        apt-get update && apt-get install -y zip
+        zip -r ../../artifacts/${_FUNCTION_NAME}.zip .
+
+  - name: 'gcr.io/cloud-builders/gsutil'
+    id: 'Upload to GCS'
+    args: ['cp', 'artifacts/${_FUNCTION_NAME}.zip', 'gs://video-converter-src-bucket/${_FUNCTION_NAME}.zip']
+
+  - name: 'hashicorp/terraform:1.11.0'
+    id: 'Terraform Init'
+    dir: infra
+    entrypoint: sh
+    args: ['-c', 'terraform init']
+
+  - name: 'hashicorp/terraform:1.11.0'
+    id: 'Terraform Apply'
+    dir: infra
+    entrypoint: sh
+    args: ['-c', 'terraform apply -auto-approve']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _REGION: asia-northeast1
+  _FUNCTION_NAME: convert-starter

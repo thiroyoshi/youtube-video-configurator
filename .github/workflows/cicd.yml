@@ -9,7 +9,7 @@ on:
 
 jobs:
   golangci-lint:
-    name: lint
+    name: lint go
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v4
@@ -24,6 +24,13 @@ jobs:
           working-directory: src/video-converter
           args: --config=../../configs/.golangci.yaml -v
 
+      - name: lint converter-starter
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          working-directory: src/convert-starter
+          args: --config=../../configs/.golangci.yaml -v
+
       - name: lint blog-post
         uses: golangci/golangci-lint-action@v7
         with:
@@ -32,7 +39,7 @@ jobs:
           args: --config=../../configs/.golangci.yaml -v
 
   unit-test:
-    name: test
+    name: test go
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v4
@@ -48,7 +55,29 @@ jobs:
         working-directory: src/video-converter
         run: go test -v -parallel 4 -cover ./...
 
-        # deploy:
+  trivy:
+    name: scan IaC config
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Install trivy
+        uses: aquasecurity/setup-trivy@v0.2.3
+
+      - name: Run trivy (Terraform IaC config check)
+        run: |
+          trivy config --severity CRITICAL ./infra
+
+  lint-makefile:
+    name: lint Makefile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Makefile syntax
+        run: make -n || (echo 'Makefile syntax error' && exit 1)
+
+    # deploy:
   #   name: deploy
   #   needs: golangci
   #   runs-on: ubuntu-latest
