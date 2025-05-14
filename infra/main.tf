@@ -25,7 +25,9 @@ locals {
     "roles/pubsub.admin",
     "roles/cloudfunctions.admin",
     "roles/cloudscheduler.admin",
-    "roles/resourcemanager.projectIamAdmin"
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/storage.admin", // GCS操作用
+    "roles/iam.serviceAccountUser" // サービスアカウント指定デプロイ用
   ]
 }
 
@@ -41,19 +43,19 @@ resource "time_sleep" "wait_for_scheduler_api" {
   create_duration = "30s"
 }
 
-# module "convert-starter_deploy_trigger" {
-#   source         = "./cloudbuild_trigger"
-#   trigger_name   = "convert-starter-deploy-trigger"
-#   function_name  = "convert-starter"
-#   cloudbuild_sa_email = google_service_account.cloudbuild_sa.email
-# }
+module "convert-starter_deploy_trigger" {
+  source         = "./cloudbuild_trigger"
+  trigger_name   = "convert-starter-deploy-trigger"
+  function_name  = "convert-starter"
+  cloudbuild_sa_email = google_service_account.cloudbuild_sa.email
+}
 
-# module "video-converter_deploy_trigger" {
-#   source         = "./cloudbuild_trigger"
-#   trigger_name   = "video-converter-deploy-trigger"
-#   function_name  = "video-converter"
-#   cloudbuild_sa_email = google_service_account.cloudbuild_sa.email
-# }
+module "video-converter_deploy_trigger" {
+  source         = "./cloudbuild_trigger"
+  trigger_name   = "video-converter-deploy-trigger"
+  function_name  = "video-converter"
+  cloudbuild_sa_email = google_service_account.cloudbuild_sa.email
+}
 
 module "convert-starter" {
   source        = "./convert-starter"

@@ -1,6 +1,6 @@
 resource "google_cloudbuild_trigger" "this" {
-  name        = var.trigger_name
-  filename    = "build/cloudbuild.yaml"
+  name = var.trigger_name
+
   github {
     owner = "thiroyoshi"
     name  = "youtube-video-configurator"
@@ -8,9 +8,10 @@ resource "google_cloudbuild_trigger" "this" {
       branch = "^main$"
     }
   }
+
+  filename = "build/cloudbuild.yaml"
   substitutions = {
     _REGION        = "asia-northeast1"
     _FUNCTION_NAME = var.function_name
   }
-  service_account = var.cloudbuild_sa_email
 }
