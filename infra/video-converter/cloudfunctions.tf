@@ -1,10 +1,9 @@
-# video-converter用Cloud Functions（2nd gen）デプロイ定義
 resource "google_cloudfunctions2_function" "video_converter" {
   name        = "video-converter"
   location    = var.region
   build_config {
     runtime     = "go123"
-    entry_point = "VideoConverter" # 実際のエントリポイント関数名に合わせて修正
+    entry_point = "VideoConverter" 
     source {
       storage_source {
         bucket = var.source_bucket
@@ -23,10 +22,6 @@ resource "google_cloudfunctions2_function" "video_converter" {
     timeout_seconds     = 60
     ingress_settings    = "ALLOW_ALL"
   }
-
-  labels = {
-    "deployment" = "terraform"
-  }
 }
 
 resource "google_service_account" "video_converter_sa" {
@@ -35,9 +30,9 @@ resource "google_service_account" "video_converter_sa" {
 }
 
 resource "google_cloudfunctions2_function_iam_member" "video_converter_invoker" {
-  project        = google_cloudfunctions2_function.video_converter.project
-  location       = google_cloudfunctions2_function.video_converter.location
+  project        = var.project_id
+  location       = var.region
   cloud_function = google_cloudfunctions2_function.video_converter.name
   role           = "roles/cloudfunctions.invoker"
-  member         = "allUsers"
+  member         = "allUsers" 
 }

@@ -30,6 +30,11 @@ resource "google_cloudfunctions2_function" "convert_starter" {
   }
 }
 
+resource "google_service_account" "function_sa" {
+  account_id   = "convert-starter-fn-sa"
+  display_name = "Service Account for Convert Starter Cloud Function"
+}
+
 resource "google_cloudfunctions2_function_iam_member" "invoker" {
   project        = google_cloudfunctions2_function.convert_starter.project
   location       = google_cloudfunctions2_function.convert_starter.location
