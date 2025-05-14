@@ -129,18 +129,6 @@ func getVideoURLs(start, end time.Time, accessToken string) ([]string, error) {
 
 // videoConverter is an HTTP Cloud Function.
 func convertStarter(w http.ResponseWriter, r *http.Request) {
-	// Check http method
-	// if r.Method != "POST" {
-	// 	w.WriteHeader(http.StatusMethodNotAllowed)
-	// 	return
-	// }
-
-	// Check my own header
-	// if r.Header.Get("X-GABA-Header") != "gabafortnite" {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	return
-	// }
-
 	// Refresh access token
 	accessToken, err := refreshAccessToken()
 	if err != nil {
@@ -152,7 +140,7 @@ func convertStarter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	start := time.Now().Add(-time.Hour * 48)
+	start := time.Now().Add(-time.Minute * 10)
 	end := time.Now()
 
 	// Get video URLs
@@ -210,10 +198,10 @@ func convertStarter(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer func() {
-		if cerr := resp.Body.Close(); cerr != nil {
-			slog.Error("failed to close response body", "error", cerr)
-		}
-	}()
+			if cerr := resp.Body.Close(); cerr != nil {
+				slog.Error("failed to close response body", "error", cerr)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			slog.Error("converter response error", "status_code", resp.StatusCode)

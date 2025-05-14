@@ -16,3 +16,11 @@ module "convert-starter" {
 
   depends_on = [time_sleep.wait_for_scheduler_api]
 }
+
+module "video-converter" {
+  source        = "./video-converter"
+  project_id    = var.project_id
+  region        = var.region
+  source_bucket = var.source_bucket
+  convert_starter_service_account_email = module.convert-starter.service_account_email
+}
