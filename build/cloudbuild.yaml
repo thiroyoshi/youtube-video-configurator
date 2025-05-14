@@ -22,13 +22,13 @@ steps:
     id: 'Upload to GCS'
     args: ['cp', 'artifacts/convert-starter.zip', 'gs://video-converter-src-bucket/convert-starter.zip']
 
-  - name: 'hashicorp/terraform:light'
+  - name: 'hashicorp/terraform:1.11.0'
     id: 'Terraform Init'
     dir: infra
     entrypoint: sh
     args: ['-c', 'terraform init']
 
-  - name: 'hashicorp/terraform:light'
+  - name: 'hashicorp/terraform:1.11.0'
     id: 'Terraform Apply'
     dir: infra
     entrypoint: sh
