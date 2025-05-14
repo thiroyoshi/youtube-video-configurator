@@ -8,7 +8,7 @@ variable "function_name" {
   type        = string
 }
 
-variable "cloudbuild_sa_email" {
-  description = "Cloud Build Trigger Service Account Email"
+variable "cloudbuild_sa_id" {
+  description = "Cloud Build Trigger Service Account ID"
   type        = string
 }

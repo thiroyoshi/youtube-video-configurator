@@ -47,14 +47,14 @@ module "convert-starter_deploy_trigger" {
   source         = "./cloudbuild_trigger"
   trigger_name   = "convert-starter-deploy-trigger"
   function_name  = "convert-starter"
-  cloudbuild_sa_email = google_service_account.cloudbuild_sa.email
+  cloudbuild_sa_id = google_service_account.cloudbuild_sa.id
 }
 
 module "video-converter_deploy_trigger" {
   source         = "./cloudbuild_trigger"
   trigger_name   = "video-converter-deploy-trigger"
   function_name  = "video-converter"
-  cloudbuild_sa_email = google_service_account.cloudbuild_sa.email
+  cloudbuild_sa_id = google_service_account.cloudbuild_sa.id
 }
 
 module "convert-starter" {

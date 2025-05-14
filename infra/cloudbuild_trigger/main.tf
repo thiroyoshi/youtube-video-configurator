@@ -14,4 +14,5 @@ resource "google_cloudbuild_trigger" "this" {
     _REGION        = "asia-northeast1"
     _FUNCTION_NAME = var.function_name
   }
+  service_account = var.cloudbuild_sa_id
 }
