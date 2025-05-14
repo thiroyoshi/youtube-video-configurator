@@ -97,7 +97,11 @@ func getVideoURLs(start, end time.Time, accessToken string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("YouTube API error: %s", resp.Status)
@@ -205,7 +209,11 @@ func convertStarter(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close response body", "error", cerr)
+		}
+	}()
 
 		if resp.StatusCode != http.StatusOK {
 			slog.Error("converter response error", "status_code", resp.StatusCode)
