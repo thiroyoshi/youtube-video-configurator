@@ -142,7 +142,7 @@ func updateVideoSnippet(videoID, title, accessToken string) ([]byte, error) {
 	req.Header.Add("Authorization", "Bearer "+accessToken)
 	req.Header.Add("Content-Type", "application/json")
 
-	client := &http.Client{}
+	client := &http.Client{Transport: http.DefaultTransport}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
