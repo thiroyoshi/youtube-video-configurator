@@ -82,21 +82,30 @@ func refreshAccessToken() (string, error) {
 	return data.AccessToken, nil
 }
 
-func getVideoSnippet(videoID string, videoTitle string) string {
+func getVideoSnippet(videoID, videoTitle string) string {
 	videoDescription := `
 	 GABAのフォートナイトのプレイログです。日々のプレイをそのままアップロードしています。
 	「ナイス！」「GG！」と思ったら高評価＆チャンネル登録をお願いします！
 	一緒にフォートナイトを盛り上げていきましょう！
-	
-	▼ Follow me! フォートナイト関連のアカウントなら100%フォロバします！
-	https://x.com/GABA_FORTNITE
+
+	▼ Recommend video! 
+	【ノーダメ / 命中率100% / ビクロイ】GABAのプレイログ 2025-04-14 15:28:44
+	　https://www.youtube.com/watch?v=EVuULSAjsJM
+
+	=========================================
+	▼ Subscribe me! チャンネル登録はこちら！
+	　https://www.youtube.com/@gabavlog
+	▼ Follow my X! フォートナイト関連のアカウントなら100%フォロバします！
+	　https://x.com/GABA_FORTNITE
+	▼ Read blog! Fortniteプレイ記録と日記とちょっとのお役立ち情報を書いてるブログです。
+	　https://gaba-fortnite.hatenablog.com/
 
 	=========================================
 	【プレイリスト集】
 	▼ ノーマル/ノーカット無編集
-	https://www.youtube.com/playlist?list=PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq
+	　https://www.youtube.com/playlist?list=PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq
 	▼ おもしろショート
-	https://www.youtube.com/playlist?list=PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O
+	　https://www.youtube.com/playlist?list=PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O
 
 	#Fortnite #gameplay #フォートナイト #プレイ動画 #ps5 #ps5Share
 	`
@@ -122,7 +131,7 @@ func getVideoSnippet(videoID string, videoTitle string) string {
 	return requestBody
 }
 
-func updateVideoSnippet(videoID string, title string, accessToken string) ([]byte, error) {
+func updateVideoSnippet(videoID, title, accessToken string) ([]byte, error) {
 	url := apiEndpoint + "videos?part=snippet"
 	requestBody := getVideoSnippet(videoID, title)
 
@@ -165,7 +174,7 @@ func updateVideoSnippet(videoID string, title string, accessToken string) ([]byt
 	return body, nil
 }
 
-func addVideoToPlaylist(videoID string, playListId string, accessToken string) ([]byte, error) {
+func addVideoToPlaylist(videoID, playListId, accessToken string) ([]byte, error) {
 	url := apiEndpoint + "playlistItems?part=snippet"
 	requestBody := fmt.Sprintf(`{"snippet": {"playlistId": "%s", "resourceId": {"kind": "youtube#video", "videoId": "%s"}}}`, playListId, videoID)
 
@@ -218,7 +227,7 @@ func postX(url string) error {
 	}
 
 	template := `
-	プレイ動画をYouTubeにアップロードしました！
+	プレイ動画をYouTubeにアップしました！
 	ぜひ見てください！気に入ったら高評価とチャンネル登録もお願いします！
 	一緒にフォートナイトを盛り上げましょう！
 	%s
@@ -314,12 +323,14 @@ func postMessageToSlack(message string) error {
 func videoConverter(w http.ResponseWriter, r *http.Request) {
 	// Check http method
 	if r.Method != "POST" {
+		slog.Error("invalid HTTP method", "method", r.Method)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	// Check my own header
 	if r.Header.Get("X-GABA-Header") != "gabafortnite" {
+		slog.Error("invalid GABA header", "X-GABA-Header", r.Header.Get("X-GABA-Header"))
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -422,16 +433,16 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Post to Slack incoming webhook
-	message := fmt.Sprintf("GABAのフォートナイトのプレイ動画をYouTubeにアップロードしました\n%s\n%s", title, data.URL)
-	if err := postMessageToSlack(message); err != nil {
-		slog.Error("failed to post message to Slack", "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		if _, err := fmt.Fprint(w, err); err != nil {
-			slog.Error("failed to write error response", "error", err)
-		}
-		return
-	}
+	// // Post to Slack incoming webhook
+	// message := fmt.Sprintf("GABAのフォートナイトのプレイ動画をYouTubeにアップロードしました\n%s\n%s", title, data.URL)
+	// if err := postMessageToSlack(message); err != nil {
+	// 	slog.Error("failed to post message to Slack", "error", err)
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	if _, err := fmt.Fprint(w, err); err != nil {
+	// 		slog.Error("failed to write error response", "error", err)
+	// 	}
+	// 	return
+	// }
 
 	// Set headers and write response
 	w.Header().Set("Content-Type", "application/json")

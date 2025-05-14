@@ -1,0 +1,28 @@
+# Cloud Build config for deploying Go Cloud Function (video-converter)
+# mainブランチへのマージ時に発火するトリガーを作成してください
+
+steps:
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Deploy video-converter function'
+    dir: src/video-converter
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud functions deploy VideoConverter \
+          --gen2 \
+          --runtime=go121 \
+          --region=asia-northeast1 \
+          --entry-point=VideoConverter \
+          --trigger-http \
+          --allow-unauthenticated \
+          --set-env-vars=GOOGLE_CLOUD_PROJECT=$PROJECT_ID
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _REGION: asia-northeast1
+
+# 必要に応じてtimeoutやserviceAccountも指定可能
+# artifactsやimagesの出力は不要
