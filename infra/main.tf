@@ -1,6 +1,12 @@
+resource "google_project_service" "serviceusage" {
+  project = var.project_id
+  service = "serviceusage.googleapis.com"
+}
+
 resource "google_project_service" "cloud_scheduler" {
   project = var.project_id
   service = "cloudscheduler.googleapis.com"
+  depends_on = [google_project_service.serviceusage]
 }
 
 resource "time_sleep" "wait_for_scheduler_api" {
