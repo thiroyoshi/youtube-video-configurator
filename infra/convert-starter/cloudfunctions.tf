@@ -26,6 +26,7 @@ resource "google_cloudfunctions2_function" "convert_starter" {
     trigger_region = var.region
     event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
     pubsub_topic   = google_pubsub_topic.convert_starter_schedule_topic.id
+    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
   }
 }
 

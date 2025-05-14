@@ -39,5 +39,5 @@ resource "google_cloudfunctions2_function_iam_member" "video_converter_invoker" 
   location       = google_cloudfunctions2_function.video_converter.location
   cloud_function = google_cloudfunctions2_function.video_converter.name
   role           = "roles/cloudfunctions.invoker"
-  member         = "serviceAccount:${var.convert_starter_service_account_email}"
+  member         = "allUsers"
 }
