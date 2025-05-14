@@ -69,6 +69,13 @@ jobs:
         run: |
           trivy config --severity CRITICAL ./infra
 
+  lint-makefile:
+    name: lint Makefile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Makefile syntax
+        run: make -n || (echo 'Makefile syntax error' && exit 1)
 
     # deploy:
   #   name: deploy
