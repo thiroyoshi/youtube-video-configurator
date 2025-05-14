@@ -1,5 +1,14 @@
 steps:
   - name: 'gcr.io/cloud-builders/ubuntu'
+    id: 'Create Artifacts Directory'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        mkdir -p artifacts
+        echo "Created artifacts directory"
+
+  - name: 'gcr.io/cloud-builders/ubuntu'
     id: 'Zip Source'
     dir: src/convert-starter
     entrypoint: 'bash'
