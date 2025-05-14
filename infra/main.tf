@@ -47,4 +47,5 @@ module "video-converter" {
   region        = var.region
   source_bucket = var.source_bucket
   convert_starter_service_account_email = module.convert-starter.service_account_email
+  depends_on = [module.convert-starter, module.convert-starter_deploy_trigger, module.video-converter_deploy_trigger, google_project_iam_member.cloudbuild_roles]
 }
