@@ -149,7 +149,7 @@ func convertStarter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	start := time.Now().Add(-time.Minute * 10)
+	start := time.Now().Add(-time.Minute * 30)
 	end := time.Now()
 
 	// Get video URLs

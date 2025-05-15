@@ -1,7 +1,7 @@
 resource "google_cloud_scheduler_job" "convert_starter_schedule" {
   name             = "convert-starter-schedule-job"
-  description      = "Trigger convert-starter function every 10 minutes"
-  schedule         = "*/10 * * * *"
+  description      = "Trigger convert-starter function every 30 minutes"
+  schedule         = "*/30 * * * *"
   time_zone        = "Asia/Tokyo"
   region           = var.region
   project          = var.project_id
