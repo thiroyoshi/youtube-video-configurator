@@ -9,6 +9,10 @@ resource "google_cloudbuild_trigger" "this" {
     }
   }
 
+  included_files = [
+    "${var.trigger_dir}/**"
+  ]
+
   filename = "build/cloudbuild.yaml"
   substitutions = {
     _REGION        = "asia-northeast1"

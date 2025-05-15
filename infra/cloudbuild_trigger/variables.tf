@@ -12,3 +12,8 @@ variable "cloudbuild_sa_id" {
   description = "Cloud Build Trigger Service Account ID"
   type        = string
 }
+
+variable "trigger_dir" {
+  description = "Cloud Buildトリガーで監視するディレクトリ（例: src/convert-starter）"
+  type        = string
+}
