@@ -8,6 +8,9 @@ deploy:
 	cd ../../src/blog-post && \
 	zip -r ../../artifacts/blog-post_1234.zip . && \
 	gsutil cp ../../artifacts/blog-post_1234.zip gs://video-converter-src-bucket/blog-post_1234.zip && \
+	cd ../../src/blog-post-diary && \
+	zip -r ../../artifacts/blog-post-diary_1234.zip . && \
+	gsutil cp ../../artifacts/blog-post-diary_1234.zip gs://video-converter-src-bucket/blog-post-diary_1234.zip && \
 	cd ../../infra && \
 	terraform apply -auto-approve -var="short_sha=1234"
 
@@ -37,6 +40,15 @@ deploy-blog-post:
 	zip -r ../../artifacts/blog-post_1234.zip . && \
 	gsutil cp ../../artifacts/blog-post_1234.zip gs://video-converter-src-bucket/blog-post_1234.zip && \
 	cd ../../infra && terraform apply -auto-approve -target=module.blog_post -var="short_sha=1234"
+
+# blog-post-diary のデプロイ
+.PHONY: deploy-blog-post-diary
+
+deploy-blog-post-diary:
+	cd src/blog-post-diary && \
+	zip -r ../../artifacts/blog-post-diary_1234.zip . && \
+	gsutil cp ../../artifacts/blog-post-diary_1234.zip gs://video-converter-src-bucket/blog-post-diary_1234.zip && \
+	cd ../../infra && terraform apply -auto-approve -target=module.blog_post_diary -var="short_sha=1234"
 
 fmt-tf:
 	cd infra && \
