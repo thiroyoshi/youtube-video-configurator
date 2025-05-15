@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	openai "github.com/openai/openai-go"
 	option "github.com/openai/openai-go/option"
 	param "github.com/openai/openai-go/packages/param"
@@ -505,6 +506,10 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func init() {
+	functions.HTTP("BlogPost", blogPost)
+}
+
 func main() {
-	blogPost(nil, nil)
+	// Cloud Functions環境ではinit()で登録された関数が呼ばれるため、mainは空でOK
 }

@@ -61,6 +61,14 @@ module "video-converter_deploy_trigger" {
   cloudbuild_sa_id = google_service_account.cloudbuild_sa.id
 }
 
+module "blog-post_deploy_trigger" {
+  source         = "./cloudbuild_trigger"
+  trigger_name   = "blog-post-deploy-trigger"
+  function_name  = "blog-post"
+  trigger_dir    = "src/blog-post"
+  cloudbuild_sa_id = google_service_account.cloudbuild_sa.id
+}
+
 module "convert-starter" {
   source        = "./convert-starter"
   project_id    = var.project_id
@@ -78,4 +86,14 @@ module "video-converter" {
   source_bucket = var.source_bucket
   convert_starter_service_account_email = module.convert-starter.service_account_email
   short_sha = var.short_sha
+}
+
+module "blog-post" {
+  source        = "./blog-post"
+  project_id    = var.project_id
+  project_number = var.project_number
+  region        = var.region
+  source_bucket = var.source_bucket
+  short_sha = var.short_sha
+  depends_on = [time_sleep.wait_for_scheduler_api, google_project_service.pubsub]
 }
