@@ -17,3 +17,8 @@ variable "convert_starter_service_account_email" {
   description = "convert-starterのサービスアカウントメールアドレス"
   type        = string
 }
+
+variable "short_sha" {
+  description = "Short SHA for artifact versioning"
+  type        = string
+}

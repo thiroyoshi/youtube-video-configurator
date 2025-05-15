@@ -20,7 +20,7 @@ steps:
 
   - name: 'gcr.io/cloud-builders/gsutil'
     id: 'Upload to GCS'
-    args: ['cp', 'artifacts/${_FUNCTION_NAME}.zip', 'gs://video-converter-src-bucket/${_FUNCTION_NAME}.zip']
+    args: ['cp', 'artifacts/${_FUNCTION_NAME}_${SHORT_SHA}.zip', 'gs://video-converter-src-bucket/${_FUNCTION_NAME}_${SHORT_SHA}.zip']
 
   - name: 'hashicorp/terraform:1.11.0'
     id: 'Terraform Init'
@@ -32,7 +32,7 @@ steps:
     id: 'Terraform Apply'
     dir: infra
     entrypoint: sh
-    args: ['-c', 'terraform apply -auto-approve']
+    args: ['-c', 'terraform apply -auto-approve -var="short_sha=${SHORT_SHA}"']
 
 options:
   logging: CLOUD_LOGGING_ONLY

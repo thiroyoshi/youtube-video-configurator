@@ -7,7 +7,7 @@ resource "google_cloudfunctions2_function" "video_converter" {
     source {
       storage_source {
         bucket = var.source_bucket
-        object = "video-converter.zip"
+        object = "video-converter_${var.short_sha}.zip"
       }
     }
   }

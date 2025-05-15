@@ -23,3 +23,8 @@ variable "project_number" {
   type        = string
   default     = "589350762095"
 }
+
+variable "short_sha" {
+  description = "Short SHA for artifact versioning"
+  type        = string
+}

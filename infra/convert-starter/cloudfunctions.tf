@@ -7,7 +7,7 @@ resource "google_cloudfunctions2_function" "convert_starter" {
     source {
       storage_source {
         bucket = var.source_bucket
-        object = "convert-starter.zip"
+        object = "convert-starter_${var.short_sha}.zip"
       }
     }
   }  

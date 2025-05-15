@@ -67,6 +67,7 @@ module "convert-starter" {
   project_number = var.project_number
   region        = var.region
   source_bucket = var.source_bucket
+  short_sha = var.short_sha
   depends_on = [time_sleep.wait_for_scheduler_api, google_project_service.pubsub]
 }
 
@@ -76,4 +77,5 @@ module "video-converter" {
   region        = var.region
   source_bucket = var.source_bucket
   convert_starter_service_account_email = module.convert-starter.service_account_email
+  short_sha = var.short_sha
 }
