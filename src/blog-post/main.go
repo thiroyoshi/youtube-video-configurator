@@ -509,7 +509,3 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 func init() {
 	functions.HTTP("BlogPost", blogPost)
 }
-
-func main() {
-	// Cloud Functions環境ではinit()で登録された関数が呼ばれるため、mainは空でOK
-}
