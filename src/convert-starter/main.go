@@ -88,6 +88,7 @@ func getVideoURLs(start, end time.Time, accessToken string) ([]string, error) {
 
 	req, err := http.NewRequest("GET", searchEndpoint, nil)
 	if err != nil {
+		slog.Error("failed to create request", "error", err)
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
@@ -95,6 +96,7 @@ func getVideoURLs(start, end time.Time, accessToken string) ([]string, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		slog.Error("failed to send request", "error", err)
 		return nil, err
 	}
 	defer func() {
@@ -103,7 +105,14 @@ func getVideoURLs(start, end time.Time, accessToken string) ([]string, error) {
 		}
 	}()
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		slog.Error("failed to read response body", "error", err)
+		return nil, err
+	}
+
 	if resp.StatusCode != http.StatusOK {
+		slog.Error("YouTube API error", "status_code", resp.StatusCode, "status", resp.Status, "body", string(body))
 		return nil, fmt.Errorf("YouTube API error: %s", resp.Status)
 	}
 
@@ -114,7 +123,7 @@ func getVideoURLs(start, end time.Time, accessToken string) ([]string, error) {
 			} `json:"id"`
 		} `json:"items"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, err
 	}
 
