@@ -32,7 +32,7 @@ steps:
     id: 'Terraform Apply'
     dir: infra
     entrypoint: sh
-    args: ['-c', 'terraform apply -auto-approve -var="short_sha=${SHORT_SHA}"']
+    args: ['-c', 'terraform apply -auto-approve -var="short_sha=${SHORT_SHA}" -target=module.${_FUNCTION_NAME}']
 
 options:
   logging: CLOUD_LOGGING_ONLY
