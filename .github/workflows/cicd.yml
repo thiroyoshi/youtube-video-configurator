@@ -129,6 +129,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.0
       - name: Terraform fmt check
         run: terraform fmt -check -recursive infra
       - name: Terraform init
