@@ -55,6 +55,85 @@ jobs:
         working-directory: src/video-converter
         run: go test -v -parallel 4 -cover ./...
 
+  go-mod-check:
+    name: Check Go Modules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check go.mod tidy/verify (blog-post)
+        working-directory: src/blog-post
+        run: |
+          go mod tidy
+          go mod verify
+      - name: Check go.mod tidy/verify (convert-starter)
+        working-directory: src/convert-starter
+        run: |
+          go mod tidy
+          go mod verify
+      - name: Check go.mod tidy/verify (video-converter)
+        working-directory: src/video-converter
+        run: |
+          go mod tidy
+          go mod verify
+
+  # gosec:
+  #   name: gosec security scan
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install gosec
+  #       run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+  #     - name: Run gosec (blog-post)
+  #       working-directory: src/blog-post
+  #       run: ~/go/bin/gosec ./...
+  #     - name: Run gosec (convert-starter)
+  #       working-directory: src/convert-starter
+  #       run: ~/go/bin/gosec ./...
+  #     - name: Run gosec (video-converter)
+  #       working-directory: src/video-converter
+  #       run: ~/go/bin/gosec ./...
+
+  gofmt:
+    name: gofmt check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check gofmt (blog-post)
+        working-directory: src/blog-post
+        run: test -z "$(gofmt -l .)" || (echo 'gofmt error' && exit 1)
+      - name: Check gofmt (convert-starter)
+        working-directory: src/convert-starter
+        run: test -z "$(gofmt -l .)" || (echo 'gofmt error' && exit 1)
+      - name: Check gofmt (video-converter)
+        working-directory: src/video-converter
+        run: test -z "$(gofmt -l .)" || (echo 'gofmt error' && exit 1)
+
+  go-build:
+    name: go build check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build blog-post
+        working-directory: src/blog-post
+        run: go build ./...
+      - name: Build convert-starter
+        working-directory: src/convert-starter
+        run: go build ./...
+      - name: Build video-converter
+        working-directory: src/video-converter
+        run: go build ./...
+
+  terraform-fmt:
+    name: Terraform fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.0
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive infra
+
   trivy:
     name: scan IaC config
     runs-on: ubuntu-latest
@@ -77,20 +156,12 @@ jobs:
       - name: Check Makefile syntax
         run: make -n || (echo 'Makefile syntax error' && exit 1)
 
-    # deploy:
-  #   name: deploy
-  #   needs: golangci
+  # gitleaks:
+  #   name: gitleaks secret scan
   #   runs-on: ubuntu-latest
   #   steps:
-  #     - uses: actions/setup-go@v4
+  #     - uses: actions/checkout@v4
+  #     - name: Run gitleaks
+  #       uses: gitleaks/gitleaks-action@v1.6.0
   #       with:
-  #         go-version: '1.21'
-  #     - uses: actions/checkout@v3
-  #     - name: deploy to Cloud functions
-  #       env:
-  #         JSON_ENCODED: ${{ secrets.GCP_YOUTUBE_CONF_DEPLOY }}
-  #         GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/youtube-video-configurator/youtube-video-configurator/src/video-converter/credentials.json
-  #       run: |
-  #         cd src/video-converter
-  #         echo $JSON_ENCODED | base64 --decode > ./credentials.json
-  #         gcloud functions deploy video-converter --gen2 --runtime=go121 --region=asia-northeast1 --entry-point=VideoConverter --trigger-http --allow-unauthenticated --project=youtube-video-configurator
+  #         args: --source .

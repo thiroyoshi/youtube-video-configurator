@@ -1,9 +1,9 @@
 output "function_name" {
-  value = google_cloudfunctions2_function.convert_starter.name
+  value = google_cloudfunctions2_function.blog_post.name
 }
 
 output "function_url" {
-  value       = google_cloudfunctions2_function.convert_starter.service_config[0].uri
+  value       = google_cloudfunctions2_function.blog_post.service_config[0].uri
   description = "The HTTPS endpoint of the deployed Cloud Function."
 }
 

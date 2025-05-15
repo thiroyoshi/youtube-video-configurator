@@ -1,4 +1,4 @@
-package main
+package blogpost
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	openai "github.com/openai/openai-go"
 	option "github.com/openai/openai-go/option"
 	param "github.com/openai/openai-go/packages/param"
@@ -505,6 +506,6 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func main() {
-	blogPost(nil, nil)
+func init() {
+	functions.HTTP("BlogPost", blogPost)
 }

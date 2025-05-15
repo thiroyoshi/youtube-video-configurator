@@ -1,9 +1,9 @@
 resource "google_cloudfunctions2_function" "video_converter" {
-  name        = "video-converter"
-  location    = var.region
+  name     = "video-converter"
+  location = var.region
   build_config {
     runtime     = "go123"
-    entry_point = "VideoConverter" 
+    entry_point = "VideoConverter"
     source {
       storage_source {
         bucket = var.source_bucket
@@ -18,9 +18,9 @@ resource "google_cloudfunctions2_function" "video_converter" {
     }
     min_instance_count = 0
     max_instance_count = 1
-    available_memory    = "256M"
-    timeout_seconds     = 60
-    ingress_settings    = "ALLOW_ALL"
+    available_memory   = "256M"
+    timeout_seconds    = 60
+    ingress_settings   = "ALLOW_ALL"
   }
 }
 
@@ -34,5 +34,5 @@ resource "google_cloudfunctions2_function_iam_member" "video_converter_invoker" 
   location       = var.region
   cloud_function = google_cloudfunctions2_function.video_converter.name
   role           = "roles/cloudfunctions.invoker"
-  member         = "allUsers" 
+  member         = "allUsers"
 }

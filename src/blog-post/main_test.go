@@ -1,4 +1,4 @@
-package main
+package blogpost
 
 import (
 	"net/http"
