@@ -1,3 +1,16 @@
+deploy:
+	cd src/convert-starter && \
+	zip -r ../../artifacts/convert-starter_1234.zip . && \
+	gsutil cp ../../artifacts/convert-starter_1234.zip gs://video-converter-src-bucket/convert-starter_1234.zip && \
+	cd ../../src/video-converter && \
+	zip -r ../../artifacts/video-converter_1234.zip . && \
+	gsutil cp ../../artifacts/video-converter_1234.zip gs://video-converter-src-bucket/video-converter_1234.zip && \
+	cd ../../src/blog-post && \
+	zip -r ../../artifacts/blog-post_1234.zip . && \
+	gsutil cp ../../artifacts/blog-post_1234.zip gs://video-converter-src-bucket/blog-post_1234.zip && \
+	cd ../../infra && \
+	terraform apply -auto-approve -var="short_sha=1234"
+
 # convert-starter のデプロイ
 .PHONY: deploy-convert-starter
 
