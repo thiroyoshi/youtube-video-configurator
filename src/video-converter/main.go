@@ -101,6 +101,21 @@ func getVideoSnippet(videoID, videoTitle string) string {
 	　https://gaba-fortnite.hatenablog.com/
 
 	=========================================
+	【GABAのプレイ環境】
+	▼ ゲーム機 & PAD：PlayStation5 （デジタル・エディション）
+	　https://amzn.to/4k47sqU
+	▼ モニター：iiyama モニター ディスプレイ XB3288UHSU-B5 31.5インチ 4K
+	　https://amzn.to/4k0XcQ0
+	▼ オーディオミキサー：YAMAHA ZG02
+	　https://amzn.to/3ZgSeWW
+	▼ ヘッドホン：MOMENTUM 3 Wireless（リンクは最新版のMOMENTUM 4 Wireless）
+    　https://amzn.to/3FauKfi
+	▼ Bluetooth トランスミッター：JPT1 Bluetooth ver 5.2 超小型 トランスミッター & レシーバー
+    　https://amzn.to/45aSLgR
+	▼ マイク：Razer Seiren X USBデジタルマイク＆ヘッドフォンアンプ
+    　https://amzn.to/4j9UTcf
+
+	=========================================
 	【プレイリスト集】
 	▼ ノーマル/ノーカット無編集
 	　https://www.youtube.com/playlist?list=PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq
