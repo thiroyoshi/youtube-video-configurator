@@ -13,7 +13,7 @@ terraform {
   required_version = ">= 1.11.0"
 
   backend "gcs" {
-    bucket  = "video-converter-state-bucket"
-    prefix  = "terraform/state"
+    bucket = "video-converter-state-bucket"
+    prefix = "terraform/state"
   }
 }

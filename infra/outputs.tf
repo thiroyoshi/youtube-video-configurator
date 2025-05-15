@@ -6,7 +6,7 @@ output "function_name" {
 }
 
 output "function_url" {
-  value = module.convert-starter.function_url
+  value       = module.convert-starter.function_url
   description = "The HTTPS endpoint of the deployed Cloud Function."
 }
 

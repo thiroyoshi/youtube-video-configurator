@@ -1,6 +1,6 @@
 resource "google_cloudfunctions2_function" "blog_post" {
-  name        = "blog-post"
-  location    = var.region
+  name     = "blog-post"
+  location = var.region
   build_config {
     runtime     = "go123"
     entry_point = "BlogPost"
@@ -16,11 +16,11 @@ resource "google_cloudfunctions2_function" "blog_post" {
     environment_variables = {
       GOOGLE_CLOUD_PROJECT = var.project_id
     }
-    min_instance_count = 0
-    max_instance_count = 1
-    available_memory    = "256M"
-    timeout_seconds     = 60
-    ingress_settings    = "ALLOW_ALL"
+    min_instance_count             = 0
+    max_instance_count             = 1
+    available_memory               = "256M"
+    timeout_seconds                = 60
+    ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
   }
   event_trigger {

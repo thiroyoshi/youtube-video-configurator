@@ -1,6 +1,6 @@
 resource "google_cloudfunctions2_function" "convert_starter" {
-  name        = "convert-starter"
-  location    = var.region
+  name     = "convert-starter"
+  location = var.region
   build_config {
     runtime     = "go123"
     entry_point = "convertStarter"
@@ -10,20 +10,20 @@ resource "google_cloudfunctions2_function" "convert_starter" {
         object = "convert-starter_${var.short_sha}.zip"
       }
     }
-  }  
-    service_config {
+  }
+  service_config {
     service_account_email = google_service_account.function_sa.email
     environment_variables = {
       GOOGLE_CLOUD_PROJECT = var.project_id
     }
-    min_instance_count = 0
-    max_instance_count = 1
-    available_memory    = "256M"
-    timeout_seconds     = 60
-    ingress_settings    = "ALLOW_ALL"
+    min_instance_count             = 0
+    max_instance_count             = 1
+    available_memory               = "256M"
+    timeout_seconds                = 60
+    ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
   }
-  
+
   event_trigger {
     trigger_region = var.region
     event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
