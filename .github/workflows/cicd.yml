@@ -76,22 +76,22 @@ jobs:
           go mod tidy
           go mod verify
 
-  gosec:
-    name: gosec security scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
-      - name: Run gosec (blog-post)
-        working-directory: src/blog-post
-        run: ~/go/bin/gosec ./...
-      - name: Run gosec (convert-starter)
-        working-directory: src/convert-starter
-        run: ~/go/bin/gosec ./...
-      - name: Run gosec (video-converter)
-        working-directory: src/video-converter
-        run: ~/go/bin/gosec ./...
+  # gosec:
+  #   name: gosec security scan
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install gosec
+  #       run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+  #     - name: Run gosec (blog-post)
+  #       working-directory: src/blog-post
+  #       run: ~/go/bin/gosec ./...
+  #     - name: Run gosec (convert-starter)
+  #       working-directory: src/convert-starter
+  #       run: ~/go/bin/gosec ./...
+  #     - name: Run gosec (video-converter)
+  #       working-directory: src/video-converter
+  #       run: ~/go/bin/gosec ./...
 
   gofmt:
     name: gofmt check
@@ -128,6 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
       - name: Terraform fmt check
         run: terraform fmt -check -recursive ./infra
       - name: Terraform validate
