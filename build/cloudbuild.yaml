@@ -16,7 +16,7 @@ steps:
       - '-c'
       - |
         apt-get update && apt-get install -y zip
-        zip -r ../../artifacts/${_FUNCTION_NAME}.zip .
+        zip -r ../../artifacts/${_FUNCTION_NAME}_${SHORT_SHA}.zip .
 
   - name: 'gcr.io/cloud-builders/gsutil'
     id: 'Upload to GCS'
