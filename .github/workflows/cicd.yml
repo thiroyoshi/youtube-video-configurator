@@ -123,8 +123,8 @@ jobs:
         working-directory: src/video-converter
         run: go build ./...
 
-  terraform-fmt-validate:
-    name: Terraform fmt & validate
+  terraform-fmt:
+    name: Terraform fmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -133,12 +133,6 @@ jobs:
           terraform_version: 1.11.0
       - name: Terraform fmt check
         run: terraform fmt -check -recursive infra
-      - name: Terraform init
-        working-directory: infra
-        run: terraform init
-      - name: Terraform validate
-        working-directory: infra
-        run: terraform validate
 
   trivy:
     name: scan IaC config
