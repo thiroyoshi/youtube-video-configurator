@@ -131,6 +131,8 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
       - name: Terraform fmt check
         run: terraform fmt -check -recursive ./infra
+      - name: Terraform init
+        run: terraform init ./infra
       - name: Terraform validate
         run: terraform validate ./infra
 
