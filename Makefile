@@ -37,3 +37,7 @@ deploy-blog-post:
 	zip -r ../../artifacts/blog-post_1234.zip . && \
 	gsutil cp ../../artifacts/blog-post_1234.zip gs://video-converter-src-bucket/blog-post_1234.zip && \
 	cd ../../infra && terraform apply -auto-approve -target=module.blog_post -var="short_sha=1234"
+
+fmt-tf:
+	cd infra && \
+	terraform fmt -recursive
