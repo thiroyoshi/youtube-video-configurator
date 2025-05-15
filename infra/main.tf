@@ -28,7 +28,8 @@ locals {
     "roles/resourcemanager.projectIamAdmin",
     "roles/storage.admin", // GCS操作用
     "roles/iam.serviceAccountUser", // サービスアカウント指定デプロイ用
-    "roles/logging.logWriter" // Cloud Logging書き込み権限を追加
+    "roles/logging.logWriter", // Cloud Logging書き込み権限
+    "roles/cloudbuild.builds.editor" // Cloud Build Trigger管理用
   ]
 }
 
