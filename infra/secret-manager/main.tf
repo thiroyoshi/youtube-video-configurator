@@ -10,7 +10,7 @@ resource "google_secret_manager_secret" "secrets" {
   secret_id = each.value
 
   replication {
-    auto {}  # Use Google-managed keys for replication
+    auto {} # Use Google-managed keys for replication
   }
 
   depends_on = [google_project_service.secretmanager]
@@ -20,7 +20,7 @@ resource "google_secret_manager_secret_version" "secret_versions" {
   for_each = google_secret_manager_secret.secrets
 
   secret      = each.value.id
-  secret_data = ""  # Empty initial value
+  secret_data = "" # Empty initial value
 
   lifecycle {
     ignore_changes = [
