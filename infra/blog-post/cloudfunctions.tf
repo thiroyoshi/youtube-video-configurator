@@ -43,3 +43,21 @@ resource "google_cloudfunctions2_function_iam_member" "invoker" {
   role           = "roles/cloudfunctions.invoker"
   member         = "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
+
+# Cloud RunのInvoker権限をPub/Subサービスアカウントに付与
+resource "google_cloud_run_service_iam_member" "run_invoker" {
+  project  = var.project_id
+  location = var.region
+  service  = google_cloudfunctions2_function.blog_post.name # Cloud Runサービス名はCloud Functions名と同じ
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+# Cloud RunサービスにallUsersのInvoker権限を一時的に付与し、認証エラーの切り分けを行う
+resource "google_cloud_run_service_iam_member" "run_invoker_allusers" {
+  project  = var.project_id
+  location = var.region
+  service  = google_cloudfunctions2_function.blog_post.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
