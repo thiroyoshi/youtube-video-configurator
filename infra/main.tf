@@ -97,3 +97,17 @@ module "blog-post" {
   short_sha      = var.short_sha
   depends_on     = [time_sleep.wait_for_scheduler_api, google_project_service.pubsub]
 }
+
+module "blog_post_secrets" {
+  source     = "./secret-manager"
+  project_id = var.project_id
+  secret_ids = [
+    "blog-post-openai-api-key",
+    "blog-post-hatena-id",
+    "blog-post-hatena-blog-id",
+    "blog-post-hatena-api-key",
+    "blog-post-slack-webhook-url"
+  ]
+  service_account_email = module.blog-post.service_account_email
+  depends_on            = [module.blog-post]
+}
