@@ -2,7 +2,7 @@ resource "google_cloudfunctions2_function" "blog_post" {
   name     = "blog-post"
   location = var.region
   build_config {
-    runtime     = "go123"
+    runtime     = "go121"
     entry_point = "BlogPost"
     source {
       storage_source {
@@ -15,6 +15,36 @@ resource "google_cloudfunctions2_function" "blog_post" {
     service_account_email = google_service_account.function_sa.email
     environment_variables = {
       GOOGLE_CLOUD_PROJECT = var.project_id
+    }
+    secret_environment_variables {
+      key        = "OPENAI_API_KEY"
+      project_id = var.project_id
+      secret     = "blog-post-openai-api-key"
+      version    = "latest"
+    }
+    secret_environment_variables {
+      key        = "HATENA_ID"
+      project_id = var.project_id
+      secret     = "blog-post-hatena-id"
+      version    = "latest"
+    }
+    secret_environment_variables {
+      key        = "HATENA_BLOG_ID"
+      project_id = var.project_id
+      secret     = "blog-post-hatena-blog-id"
+      version    = "latest"
+    }
+    secret_environment_variables {
+      key        = "HATENA_API_KEY"
+      project_id = var.project_id
+      secret     = "blog-post-hatena-api-key"
+      version    = "latest"
+    }
+    secret_environment_variables {
+      key        = "SLACK_WEBHOOK_URL"
+      project_id = var.project_id
+      secret     = "blog-post-slack-webhook-url"
+      version    = "latest"
     }
     min_instance_count             = 0
     max_instance_count             = 1

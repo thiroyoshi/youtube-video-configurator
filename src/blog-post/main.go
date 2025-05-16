@@ -27,18 +27,26 @@ type Config struct {
 }
 
 func loadConfig() (*Config, error) {
-	configFile := "config.json"
-	data, err := os.ReadFile(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
+	config := &Config{
+		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
+		HatenaId:     os.Getenv("HATENA_ID"),
+		HatenaBlogId: os.Getenv("HATENA_BLOG_ID"),
+		HatenaApiKey: os.Getenv("HATENA_API_KEY"),
 	}
 
-	var config Config
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("JSONのパースに失敗: %v", err)
+	if config.OpenAIAPIKey == "" || config.HatenaId == "" || config.HatenaBlogId == "" || config.HatenaApiKey == "" {
+		configFile := "config.json"
+		data, err := os.ReadFile(configFile)
+		if err != nil {
+			return nil, fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
+		}
+
+		if err := json.Unmarshal(data, &config); err != nil {
+			return nil, fmt.Errorf("JSONのパースに失敗: %v", err)
+		}
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 // AtomPub API に送る XML の構造体
@@ -436,7 +444,10 @@ func post(title, content string) (string, error) {
 }
 
 func postMessageToSlack(message string) error {
-	slackURL := "https://hooks.slack.com/services/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"
+	slackURL := os.Getenv("SLACK_WEBHOOK_URL")
+	if slackURL == "" {
+		slackURL = "https://hooks.slack.com/services/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"
+	}
 	slackPayload := map[string]string{"text": message}
 	slackPayloadBytes, err := json.Marshal(slackPayload)
 	if err != nil {
