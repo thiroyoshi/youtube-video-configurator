@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
@@ -85,7 +84,7 @@ func shortUpload(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().In(jst)
 	
 	startTime := now.Add(-24 * time.Hour)
-	tweetIDs, mediaMap, err := getXPostsWithVideos(startTime, now)
+	tweetIDs, err := getXPostsWithVideos(startTime, now)
 	if err != nil {
 		slog.Error("Failed to get X posts with videos", "error", err)
 		http.Error(w, fmt.Sprintf("Failed to get X posts with videos: %v", err), http.StatusInternalServerError)
@@ -140,7 +139,7 @@ func shortUpload(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Processed %d video posts", len(tweetIDs))
 }
 
-func getXPostsWithVideos(startTime, endTime time.Time) ([]string, map[string]string, error) {
+func getXPostsWithVideos(startTime, endTime time.Time) ([]string, error) {
 	xApiKey := getEnvOrFail("X_API_KEY")
 	xApiSecretKey := getEnvOrFail("X_API_SECRET_KEY")
 	xAccessToken := getEnvOrFail("X_ACCESS_TOKEN")
@@ -162,31 +161,30 @@ func getXPostsWithVideos(startTime, endTime time.Time) ([]string, map[string]str
 	
 	req, err := http.NewRequest("GET", endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 	
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	
 	if resp.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("X API error: %s - %s", resp.Status, string(body))
+		return nil, fmt.Errorf("X API error: %s - %s", resp.Status, string(body))
 	}
 	
 	var tweetResp TweetResponse
 	if err := json.Unmarshal(body, &tweetResp); err != nil {
-		return nil, nil, fmt.Errorf("failed to parse response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	
 	tweetIDs := []string{}
-	mediaMap := make(map[string]string)
 	
 	mediaKeyMap := make(map[string]struct{})
 	for _, media := range tweetResp.Includes.Media {
@@ -199,7 +197,7 @@ func getXPostsWithVideos(startTime, endTime time.Time) ([]string, map[string]str
 		tweetIDs = append(tweetIDs, tweet.ID)
 	}
 	
-	return tweetIDs, mediaMap, nil
+	return tweetIDs, nil
 }
 
 func fetchVideoURL(tweetID string) (string, error) {
