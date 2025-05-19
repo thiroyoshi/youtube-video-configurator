@@ -69,6 +69,14 @@ module "blog-post_deploy_trigger" {
   cloudbuild_sa_id = google_service_account.cloudbuild_sa.id
 }
 
+module "short-upload_deploy_trigger" {
+  source           = "./cloudbuild_trigger"
+  trigger_name     = "short-upload-deploy-trigger"
+  function_name    = "short-upload"
+  trigger_dir      = "src/short-upload"
+  cloudbuild_sa_id = google_service_account.cloudbuild_sa.id
+}
+
 module "convert-starter" {
   source         = "./convert-starter"
   project_id     = var.project_id
@@ -90,6 +98,16 @@ module "video-converter" {
 
 module "blog-post" {
   source         = "./blog-post"
+  project_id     = var.project_id
+  project_number = var.project_number
+  region         = var.region
+  source_bucket  = var.source_bucket
+  short_sha      = var.short_sha
+  depends_on     = [time_sleep.wait_for_scheduler_api, google_project_service.pubsub]
+}
+
+module "short-upload" {
+  source         = "./short-upload"
   project_id     = var.project_id
   project_number = var.project_number
   region         = var.region

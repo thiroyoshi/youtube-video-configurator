@@ -37,6 +37,13 @@ jobs:
           version: latest
           working-directory: src/blog-post
           args: --config=../../configs/.golangci.yaml -v
+          
+      - name: lint short-upload
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          working-directory: src/short-upload
+          args: --config=../../configs/.golangci.yaml -v
 
   unit-test:
     name: test go
@@ -54,6 +61,10 @@ jobs:
       - name: test video-converter
         working-directory: src/video-converter
         run: go test -v -parallel 4 -cover ./...
+        
+      - name: test short-upload
+        working-directory: src/short-upload
+        run: go test -v -cover ./...
 
   go-mod-check:
     name: Check Go Modules
@@ -75,6 +86,11 @@ jobs:
         run: |
           go mod tidy
           go mod verify
+      - name: Check go.mod tidy/verify (short-upload)
+        working-directory: src/short-upload
+        run: |
+          go mod tidy
+          go mod verify
 
   # gosec:
   #   name: gosec security scan
@@ -92,6 +108,9 @@ jobs:
   #     - name: Run gosec (video-converter)
   #       working-directory: src/video-converter
   #       run: ~/go/bin/gosec ./...
+  #     - name: Run gosec (short-upload)
+  #       working-directory: src/short-upload
+  #       run: ~/go/bin/gosec ./...
 
   gofmt:
     name: gofmt check
@@ -107,6 +126,9 @@ jobs:
       - name: Check gofmt (video-converter)
         working-directory: src/video-converter
         run: test -z "$(gofmt -l .)" || (echo 'gofmt error' && exit 1)
+      - name: Check gofmt (short-upload)
+        working-directory: src/short-upload
+        run: test -z "$(gofmt -l .)" || (echo 'gofmt error' && exit 1)
 
   go-build:
     name: go build check
@@ -121,6 +143,9 @@ jobs:
         run: go build ./...
       - name: Build video-converter
         working-directory: src/video-converter
+        run: go build ./...
+      - name: Build short-upload
+        working-directory: src/short-upload
         run: go build ./...
 
   terraform-fmt:
