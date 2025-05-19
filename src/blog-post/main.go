@@ -19,22 +19,23 @@ import (
 	param "github.com/openai/openai-go/packages/param"
 )
 
+const (
+	HatenaId     = "gabafortnite"
+	HatenaBlogId = "gabafortnite.hatenablog.com"
+)
+
 type Config struct {
 	OpenAIAPIKey string `json:"openai_api_key"`
-	HatenaId     string `json:"hatena_id"`
-	HatenaBlogId string `json:"hatena_blog_id"`
 	HatenaApiKey string `json:"hatena_api_key"`
 }
 
 func loadConfig() (*Config, error) {
 	config := &Config{
 		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
-		HatenaId:     os.Getenv("HATENA_ID"),
-		HatenaBlogId: os.Getenv("HATENA_BLOG_ID"),
 		HatenaApiKey: os.Getenv("HATENA_API_KEY"),
 	}
 
-	if config.OpenAIAPIKey == "" || config.HatenaId == "" || config.HatenaBlogId == "" || config.HatenaApiKey == "" {
+	if config.OpenAIAPIKey == "" || config.HatenaApiKey == "" {
 		configFile := "config.json"
 		data, err := os.ReadFile(configFile)
 		if err != nil {
@@ -383,7 +384,7 @@ func post(title, content string) (string, error) {
 	}
 
 	// はてなブログ API のエンドポイント
-	endpoint := fmt.Sprintf("https://blog.hatena.ne.jp/%s/%s/atom/entry", config.HatenaId, config.HatenaBlogId)
+	endpoint := fmt.Sprintf("https://blog.hatena.ne.jp/%s/%s/atom/entry", HatenaId, HatenaBlogId)
 
 	// 投稿する記事のデータ
 	entry := Entry{
@@ -414,7 +415,7 @@ func post(title, content string) (string, error) {
 	}
 
 	// ヘッダー設定
-	req.SetBasicAuth(config.HatenaId, config.HatenaApiKey)
+	req.SetBasicAuth(HatenaId, config.HatenaApiKey)
 	req.Header.Set("Content-Type", "application/xml")
 
 	// HTTP クライアントでリクエスト送信
