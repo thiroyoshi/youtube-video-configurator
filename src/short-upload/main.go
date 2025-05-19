@@ -19,22 +19,20 @@ import (
 
 const (
 	xAPIEndpoint           = "https://api.twitter.com/2"
-	xUserID                = "1449548285354516482"
-	xApiKey                = "vR8oo1pAQFgeYKlfxIPSrgRq6"
-	xApiSecretKey          = "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
-	xAccessToken           = "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
-	xAccessTokenSecret     = "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
-
 	youtubeTokenEndpoint     = "https://accounts.google.com/o/oauth2/token"
 	youtubeAPIEndpoint       = "https://www.googleapis.com/upload/youtube/v3/videos"
-	youtubeClientID          = "589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com"
-	youtubeClientSecret      = "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"
-	youtubeRefreshToken      = "1//0eZ6zn_HG54e-CgYIARAAGA4SNwF-L9IraHLGPq_CNydexr-Sjj0SczlZZF0M3r6A5Sp2O8Eo_1tnR7mUUeFPpRIJ2v87_8QeHEI"
 	youtubeReadWriteScope    = "https://www.googleapis.com/auth/youtube"
 	youtubeVideoUploadScope  = "https://www.googleapis.com/auth/youtube.upload"
-	playlistShort            = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
-	fortniteSeason           = "C6S3"
 )
+
+func getEnvOrFail(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		slog.Error("Missing required environment variable", "key", key)
+		panic(fmt.Sprintf("Missing required environment variable: %s", key))
+	}
+	return value
+}
 
 type TweetResponse struct {
 	Data []struct {
@@ -128,6 +126,7 @@ func shortUpload(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		
+		playlistShort := getEnvOrFail("PLAYLIST_SHORT")
 		err = addVideoToPlaylist(videoID, playlistShort, youtubeAccessToken)
 		if err != nil {
 			slog.Error("Failed to add video to playlist", "video_id", videoID, "error", err)
@@ -142,6 +141,12 @@ func shortUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func getXPostsWithVideos(startTime, endTime time.Time) ([]string, map[string]string, error) {
+	xApiKey := getEnvOrFail("X_API_KEY")
+	xApiSecretKey := getEnvOrFail("X_API_SECRET_KEY")
+	xAccessToken := getEnvOrFail("X_ACCESS_TOKEN")
+	xAccessTokenSecret := getEnvOrFail("X_ACCESS_TOKEN_SECRET")
+	xUserID := getEnvOrFail("X_USER_ID")
+	
 	config := oauth1.NewConfig(xApiKey, xApiSecretKey)
 	token := oauth1.NewToken(xAccessToken, xAccessTokenSecret)
 	httpClient := config.Client(oauth1.NoContext, token)
@@ -203,6 +208,11 @@ func fetchVideoURL(tweetID string) (string, error) {
 		xAPIEndpoint,
 		tweetID,
 	)
+	
+	xApiKey := getEnvOrFail("X_API_KEY")
+	xApiSecretKey := getEnvOrFail("X_API_SECRET_KEY")
+	xAccessToken := getEnvOrFail("X_ACCESS_TOKEN")
+	xAccessTokenSecret := getEnvOrFail("X_ACCESS_TOKEN_SECRET")
 	
 	config := oauth1.NewConfig(xApiKey, xApiSecretKey)
 	token := oauth1.NewToken(xAccessToken, xAccessTokenSecret)
@@ -285,6 +295,10 @@ func downloadVideo(videoURL, tweetID string) (string, error) {
 }
 
 func refreshYoutubeAccessToken() (string, error) {
+	youtubeClientID := getEnvOrFail("YOUTUBE_CLIENT_ID")
+	youtubeClientSecret := getEnvOrFail("YOUTUBE_CLIENT_SECRET")
+	youtubeRefreshToken := getEnvOrFail("YOUTUBE_REFRESH_TOKEN")
+	
 	requestBody := fmt.Sprintf(
 		"client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token",
 		youtubeClientID,
@@ -340,6 +354,7 @@ func uploadVideoToYoutube(videoPath, tweetID, accessToken string) (string, error
 	}
 	now := time.Now().In(jst)
 	
+	fortniteSeason := getEnvOrFail("FORTNITE_SEASON")
 	videoTitle := fmt.Sprintf("Fortnite Short %s GABA's Gameplay %s #Fortnite #short #フォートナイト #ps5", fortniteSeason, now.Format("2006-01-02 15:04:05"))
 	
 	metadata := fmt.Sprintf(`
