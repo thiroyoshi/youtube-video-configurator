@@ -103,8 +103,6 @@ module "blog_post_secrets" {
   project_id = var.project_id
   secret_ids = [
     "blog-post-openai-api-key",
-    "blog-post-hatena-id",
-    "blog-post-hatena-blog-id",
     "blog-post-hatena-api-key",
     "blog-post-slack-webhook-url"
   ]
