@@ -15,16 +15,16 @@ resource "google_cloudfunctions2_function" "short_upload" {
     service_account_email = google_service_account.function_sa.email
     environment_variables = {
       GOOGLE_CLOUD_PROJECT  = var.project_id
-      X_API_KEY             = "vR8oo1pAQFgeYKlfxIPSrgRq6"
-      X_API_SECRET_KEY      = "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
-      X_ACCESS_TOKEN        = "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
-      X_ACCESS_TOKEN_SECRET = "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
-      X_USER_ID             = "1449548285354516482"
-      YOUTUBE_CLIENT_ID     = "589350762095-2rpqdftrm5m5s0ibhg6m1kb0f46q058r.apps.googleusercontent.com"
-      YOUTUBE_CLIENT_SECRET = "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"
-      YOUTUBE_REFRESH_TOKEN = "1//0eZ6zn_HG54e-CgYIARAAGA4SNwF-L9IraHLGPq_CNydexr-Sjj0SczlZZF0M3r6A5Sp2O8Eo_1tnR7mUUeFPpRIJ2v87_8QeHEI"
-      PLAYLIST_SHORT        = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
-      FORTNITE_SEASON       = "C6S3"
+      X_API_KEY             = var.x_api_key
+      X_API_SECRET_KEY      = var.x_api_secret_key
+      X_ACCESS_TOKEN        = var.x_access_token
+      X_ACCESS_TOKEN_SECRET = var.x_access_token_secret
+      X_USER_ID             = var.x_user_id
+      YOUTUBE_CLIENT_ID     = var.youtube_client_id
+      YOUTUBE_CLIENT_SECRET = var.youtube_client_secret
+      YOUTUBE_REFRESH_TOKEN = var.youtube_refresh_token
+      PLAYLIST_SHORT        = var.playlist_short
+      FORTNITE_SEASON       = var.fortnite_season
     }
     min_instance_count             = 0
     max_instance_count             = 1
