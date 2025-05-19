@@ -2,7 +2,7 @@ resource "google_cloudfunctions2_function" "blog_post" {
   name     = "blog-post"
   location = var.region
   build_config {
-    runtime     = "go121"
+    runtime     = "go123"
     entry_point = "BlogPost"
     source {
       storage_source {
