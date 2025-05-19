@@ -22,18 +22,7 @@ resource "google_cloudfunctions2_function" "blog_post" {
       secret     = "blog-post-openai-api-key"
       version    = "latest"
     }
-    secret_environment_variables {
-      key        = "HATENA_ID"
-      project_id = var.project_id
-      secret     = "blog-post-hatena-id"
-      version    = "latest"
-    }
-    secret_environment_variables {
-      key        = "HATENA_BLOG_ID"
-      project_id = var.project_id
-      secret     = "blog-post-hatena-blog-id"
-      version    = "latest"
-    }
+    // HATENA_ID and HATENA_BLOG_ID are now constants in the code
     secret_environment_variables {
       key        = "HATENA_API_KEY"
       project_id = var.project_id
