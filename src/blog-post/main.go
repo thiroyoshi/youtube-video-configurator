@@ -255,7 +255,7 @@ func getSummaries(articles []Article, limit int, now time.Time) (string, error) 
 		}
 
 		resp := chatCompletion.Choices[0].Message.Content
-		slog.Info("Article summary generated", 
+		slog.Info("Article summary generated",
 			"title", article.Title,
 			"link", article.Link,
 			"response", resp,
@@ -340,8 +340,8 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		}
 
 		// Content is too short, retry
-		slog.Info("Generated content is too short, retrying", 
-			"length", utf8.RuneCountInString(contentJson3.Content), 
+		slog.Info("Generated content is too short, retrying",
+			"length", utf8.RuneCountInString(contentJson3.Content),
 			"required", minContentLength,
 			"attempt", i+1,
 			"maxRetries", maxRetries)
