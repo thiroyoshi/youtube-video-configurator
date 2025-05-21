@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 
 	"github.com/dghubble/oauth1"
@@ -37,14 +36,14 @@ func postX(message string) error {
 	// Marshal the Tweet struct to JSON
 	jsonData, err := json.Marshal(tweet)
 	if err != nil {
-		slog.Error("failed to marshal JSON", "error", err)
+		fmt.Println("JSONマーシャルエラー:", err)
 		return err
 	}
 
 	// POSTリクエストを作成
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
-		slog.Error("failed to create request", "error", err)
+		fmt.Println("リクエスト作成エラー:", err)
 		return err
 	}
 
@@ -53,24 +52,25 @@ func postX(message string) error {
 	// リクエストを送信
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		slog.Error("failed to send request", "error", err)
+		fmt.Println("リクエスト送信エラー:", err)
 		return err
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			slog.Error("failed to close response body", "error", err)
+			fmt.Printf("resp.Body.Close error: %v\n", err)
 		}
 	}()
 
 	// レスポンスを読み取る
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("failed to read response body", "error", err)
+		fmt.Println("レスポンス読み取りエラー:", err)
 		return err
 	}
 
 	// 結果を表示
-	slog.Info("X API response", "status", resp.Status, "body", string(body))
+	fmt.Println("レスポンスステータス:", resp.Status)
+	fmt.Println("レスポンスボディ:", string(body))
 
 	return nil
 }

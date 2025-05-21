@@ -13,12 +13,62 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	openai "github.com/openai/openai-go"
 	option "github.com/openai/openai-go/option"
 	param "github.com/openai/openai-go/packages/param"
 )
+
+// ブログ記事初版生成用のプロンプト
+var prompt2 = `
+	あなたはFortnite専門のプロブロガーです。
+	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
+
+	後述する情報を使用して、以下の条件に合うようにFortniteに関するブログ記事とそのタイトルを作成してください。
+
+	条件
+	・1記事あたりトピックの数は3トピックまでとし、1トピックあたり200字以内で書く
+	・各トピックは、見出し、日付、内容、情報源リンク（参照先のタイトルがリンクとなっている形式）で構成する
+	・トピックの見出しは、読みやすくわかりやすい人目を引きやすいものとする
+	・トピックの内容は、適度な改行やエクスクラメーションマークを挿入して、テンポよく読みやすくまとめる
+	・記事のタイトルは、SEOのために記事の内容から適度にキーワードを取り入れる
+	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
+	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
+	{
+		"title": "記事のタイトル",
+		"content": "記事の内容"
+	}
+
+	以下が元となる情報の一覧である。
+
+	%s
+	`
+
+// ブログ記事推敲用のプロンプト
+var prompt3 = `
+	あなたはFortnite専門のプロブロガーです。
+	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
+
+	後述するブログ記事の内容をもとにして、以下の条件に合うようにブログ記事を修正し、新たにタイトルを作成してください。
+
+	[条件]
+	・記事の内容について、現在をブログ記事として60点と考え、それを100点になるように修正すること
+	・記事の末尾には、記事全体を総括したまとめを入れる
+	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
+	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
+	{
+		"title": "記事のタイトル",
+		"content": "記事の内容"
+	}
+
+	以下が元となるブログ記事である。
+
+	%s
+
+	万が一、要求通りに修正できない場合には、json形式で出力するのみとすること
+	`
 
 type Config struct {
 	OpenAIAPIKey string `json:"openai_api_key"`
@@ -146,10 +196,10 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	return articles, nil
 }
 
-func getSummaries(articles []Article, limit int, now time.Time) string {
+func getSummaries(articles []Article, limit int, now time.Time) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		return "", fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
 	}
 
 	today := now.Format("2006年01月02日")
@@ -199,7 +249,7 @@ func getSummaries(articles []Article, limit int, now time.Time) string {
 			},
 		})
 		if err != nil {
-			panic(err.Error())
+			return "", fmt.Errorf("記事サマリーの生成に失敗: %w", err)
 		}
 
 		resp := chatCompletion.Choices[0].Message.Content
@@ -212,119 +262,95 @@ func getSummaries(articles []Article, limit int, now time.Time) string {
 		summaries = append(summaries, fmt.Sprintf("%s: %s, %s", article.Title, article.Link, resp))
 	}
 
-	return strings.Join(summaries, "\n")
+	return strings.Join(summaries, "\n"), nil
 }
 
-func generatePostByArticles(articles string, now time.Time) (string, string) {
+func generatePostByArticles(articles string, now time.Time) (string, string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		return "", "", fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
 	}
 
 	// == first phase : 初版の作成 ==
-	prompt2 := `
-	あなたはFortnite専門のプロブロガーです。
-	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
-
-	後述する情報を使用して、以下の条件に合うようにFortniteに関するブログ記事とそのタイトルを作成してください。
-
-	条件
-	・1記事あたりトピックの数は3トピックまでとし、1トピックあたり200字以内で書く
-	・各トピックは、見出し、日付、内容、情報源リンク（参照先のタイトルがリンクとなっている形式）で構成する
-	・トピックの見出しは、読みやすくわかりやすい人目を引きやすいものとする
-	・トピックの内容は、適度な改行やエクスクラメーションマークを挿入して、テンポよく読みやすくまとめる
-	・記事のタイトルは、SEOのために記事の内容から適度にキーワードを取り入れる
-	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
-	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
-	{
-		"title": "記事のタイトル",
-		"content": "記事の内容"
-	}
-
-	以下が元となる情報の一覧である。
-
-	%s
-	`
-
 	client := openai.NewClient(
 		option.WithAPIKey(config.OpenAIAPIKey),
 	)
 
-	chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage(fmt.Sprintf(prompt2, articles)),
-		},
-		Model: openai.ChatModelO1,
-	})
-	if err != nil {
-		panic(err.Error())
-	}
-
-	resp := chatCompletion.Choices[0].Message.Content
-	resp = strings.TrimPrefix(resp, "```json\n")
-	resp = strings.ReplaceAll(resp, "`", "")
-
-	var contentJson2 ContentJson
-	err = json.Unmarshal([]byte(resp), &contentJson2)
-	if err != nil {
-		slog.Error("failed to unmarshal content JSON", "response", resp, "error", err)
-		panic(err.Error())
-	}
-
-	slog.Info("content generation phase 1 complete", "content", contentJson2.Content)
-
-	// == second phase : 初版の推敲 ==
-	prompt3 := `
-	あなたはFortnite専門のプロブロガーです。
-	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
-
-	後述するブログ記事の内容をもとにして、以下の条件に合うようにブログ記事を修正し、新たにタイトルを作成してください。
-
-	[条件]
-	・記事の内容について、現在をブログ記事として60点と考え、それを100点になるように修正すること
-	・記事の末尾には、記事全体を総括したまとめを入れる
-	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
-	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
-	{
-		"title": "記事のタイトル",
-		"content": "記事の内容"
-	}
-
-	以下が元となるブログ記事である。
-
-	%s
-
-	万が一、要求通りに修正できない場合には、json形式で出力するのみとすること
-	`
-
-	chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage(fmt.Sprintf(prompt3, contentJson2.Content)),
-		},
-		Model: openai.ChatModelO1Preview,
-	})
-	if err != nil {
-		slog.Error("failed to generate content in phase 2", "error", err)
-		panic(err.Error())
-	}
-
-	resp = chatCompletion.Choices[0].Message.Content
-	resp = strings.TrimPrefix(resp, "```json\n")
-	resp = strings.ReplaceAll(resp, "`", "")
-
 	var contentJson3 ContentJson
-	err = json.Unmarshal([]byte(resp), &contentJson3)
-	if err != nil {
-		slog.Error("failed to unmarshal content in phase 2", "response", resp, "error", err)
-		return contentJson2.Title, addContentFormat(contentJson2.Content)
-	}
+	var title string
+	maxRetries := 5
+	minContentLength := 1000
 
-	slog.Info("content generation phase 2 complete", "content", contentJson3.Content)
+	// Generate blog post with retry logic for short content
+	for i := 0; i < maxRetries; i++ {
+		chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(fmt.Sprintf(prompt2, articles)),
+			},
+			Model: openai.ChatModelO1,
+		})
+		if err != nil {
+			return "", "", fmt.Errorf("初版生成のOpenAI APIリクエストに失敗: %w", err)
+		}
+
+		resp := chatCompletion.Choices[0].Message.Content
+		resp = strings.TrimPrefix(resp, "```json\n")
+		resp = strings.ReplaceAll(resp, "`", "")
+
+		var contentJson2 ContentJson
+		err = json.Unmarshal([]byte(resp), &contentJson2)
+		if err != nil {
+			slog.Error("failed to unmarshal initial content", "response", resp, "error", err)
+			return "", "", fmt.Errorf("初版レスポンスのJSONパースに失敗: %w", err)
+		}
+
+		slog.Info("content generation phase 1 complete", "content", contentJson2.Content)
+
+		// == second phase : 初版の推敲 ==
+		chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(fmt.Sprintf(prompt3, contentJson2.Content)),
+			},
+			Model: openai.ChatModelO1Preview,
+		})
+		if err != nil {
+			return "", "", fmt.Errorf("推敲版生成のOpenAI APIリクエストに失敗: %w", err)
+		}
+
+		resp = chatCompletion.Choices[0].Message.Content
+		resp = strings.TrimPrefix(resp, "```json\n")
+		resp = strings.ReplaceAll(resp, "`", "")
+
+		err = json.Unmarshal([]byte(resp), &contentJson3)
+		if err != nil {
+			slog.Error("failed to unmarshal refined content", "response", resp, "error", err)
+			// JSONパースに失敗した場合は初版のコンテンツを使用
+			contentJson3 = contentJson2
+		}
+
+		slog.Info("content generation phase 2 complete", "content", contentJson3.Content)
+
+		// Check if the content is long enough
+		if utf8.RuneCountInString(contentJson3.Content) >= minContentLength {
+			// Content is long enough, break the retry loop
+			slog.Info("generated content meets length requirements", "length", utf8.RuneCountInString(contentJson3.Content))
+			break
+		}
+
+		// Content is too short, retry
+		slog.Info("generated content is too short, retrying", "length", utf8.RuneCountInString(contentJson3.Content), "minimum", minContentLength, "attempt", i+1)
+
+		// If this is the last retry and content is still too short, return an error
+		if i == maxRetries-1 {
+			contentLength := utf8.RuneCountInString(contentJson3.Content)
+			return "", "", fmt.Errorf("生成されたコンテンツが短すぎます。最終長さ: %d文字、必要な長さ: %d文字以上", contentLength, minContentLength)
+		}
+	}
 
 	pubDate := now.Format("2006/01/02")
-	title := fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
+	title = fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
 
-	return title, addContentFormat(contentJson3.Content)
+	return title, addContentFormat(contentJson3.Content), nil
 }
 
 func addContentFormat(content string) string {
@@ -362,6 +388,7 @@ func addContentFormat(content string) string {
 	b := make([]byte, 1)
 	if _, err := rand.Read(b); err != nil {
 		// エラーが発生した場合は最初のリンクを使用
+		slog.Error("failed to generate random number", "error", err)
 		return hello + content + links[0] + disclaimer
 	}
 	index := int(b[0]) % len(links)
@@ -372,7 +399,7 @@ func addContentFormat(content string) string {
 func post(title, content string) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		return "", fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
 	}
 
 	// はてなブログ API のエンドポイント
@@ -479,7 +506,7 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
 		slog.Error("failed to load JST location", "error", err)
-		panic(err)
+		return
 	}
 
 	now := time.Now().In(jst)
@@ -491,8 +518,17 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summaries := getSummaries(articles, 10, now)
-	title, content := generatePostByArticles(summaries, now)
+	summaries, err := getSummaries(articles, 10, now)
+	if err != nil {
+		slog.Error("failed to get article summaries", "error", err)
+		return
+	}
+
+	title, content, err := generatePostByArticles(summaries, now)
+	if err != nil {
+		slog.Error("failed to generate blog post", "error", err)
+		return
+	}
 	url, err := post(title, content)
 	if err != nil {
 		slog.Error("failed to post to Hatena Blog", "error", err)
@@ -505,7 +541,6 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 		slog.Error("failed to post message to slack", "error", err)
 		return
 	}
-
 }
 
 func init() {

@@ -210,13 +210,13 @@ func addVideoToPlaylist(videoID, playListId, accessToken string) ([]byte, error)
 			slog.Error("failed to close response body", "error", cerr)
 		}
 	}()
-	slog.Info("add video to playlist response", "status", resp.Status)
+	fmt.Println("add video to playlist response Status:", resp.Status)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err
 	}
-	slog.Info("add video to playlist response body", "body", string(body))
+	fmt.Println(string(body))
 
 	return body, nil
 }
@@ -255,7 +255,7 @@ func postX(url string) error {
 	// Marshal the Tweet struct to JSON
 	jsonData, err := json.Marshal(tweet)
 	if err != nil {
-		slog.Error("failed to marshal JSON", "error", err)
+		fmt.Println("JSONマーシャルエラー:", err)
 		return err
 	}
 
@@ -270,7 +270,7 @@ func postX(url string) error {
 	// リクエストを送信
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		slog.Error("failed to send request", "error", err)
+		fmt.Println("リクエスト送信エラー:", err)
 		return err
 	}
 	defer func() {
@@ -282,12 +282,13 @@ func postX(url string) error {
 	// レスポンスを読み取る
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("failed to read response body", "error", err)
+		fmt.Println("レスポンス読み取りエラー:", err)
 		return err
 	}
 
 	// 結果を表示
-	slog.Info("X API response", "status", resp.Status, "body", string(body))
+	fmt.Println("レスポンスステータス:", resp.Status)
+	fmt.Println("レスポンスボディ:", string(body))
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("twitter API returned unexpected status code: %d", resp.StatusCode)
@@ -375,7 +376,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	slog.Info("request body", "body", string(body))
+	fmt.Println("body:", string(body))
 
 	// Parse RequestData
 	jsonBytes := ([]byte)(body)
@@ -388,7 +389,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	slog.Info("parsed request data", "data", data)
+	fmt.Println("data:", data)
 
 	// Get videoId
 	dataStrings := strings.Split(data.URL, "?v=")
