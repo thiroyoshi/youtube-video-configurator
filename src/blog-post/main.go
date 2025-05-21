@@ -264,7 +264,7 @@ func getSummaries(articles []Article, limit int, now time.Time) string {
 	return strings.Join(summaries, "\n")
 }
 
-func generatePostByArticles(articles string, now time.Time) (string, string) {
+func generatePostByArticles(articles string, now time.Time) (string, string, error) {
 	config, err := loadConfig()
 	if err != nil {
 		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
@@ -277,7 +277,7 @@ func generatePostByArticles(articles string, now time.Time) (string, string) {
 
 	var contentJson3 ContentJson
 	var title string
-	maxRetries := 3
+	maxRetries := 5
 	minContentLength := 1000
 
 	// Generate blog post with retry logic for short content
@@ -324,7 +324,7 @@ func generatePostByArticles(articles string, now time.Time) (string, string) {
 		if err != nil {
 			fmt.Println(resp)
 			fmt.Println("Unmarshal error:", err)
-			return contentJson2.Title, addContentFormat(contentJson2.Content)
+			return contentJson2.Title, addContentFormat(contentJson2.Content), nil
 		}
 
 		fmt.Println("content3:", contentJson3.Content)
@@ -339,16 +339,17 @@ func generatePostByArticles(articles string, now time.Time) (string, string) {
 		// Content is too short, retry
 		fmt.Println("Generated content is too short:", utf8.RuneCountInString(contentJson3.Content), "characters. Retrying...")
 
-		// If this is the last retry and content is still too short, use the content anyway
+		// If this is the last retry and content is still too short, return an error
 		if i == maxRetries-1 {
-			fmt.Println("Max retries reached. Using the last generated content despite being too short.")
+			contentLength := utf8.RuneCountInString(contentJson3.Content)
+			return "", "", fmt.Errorf("生成されたコンテンツが短すぎます。最終長さ: %d文字、必要な長さ: %d文字以上", contentLength, minContentLength)
 		}
 	}
 
 	pubDate := now.Format("2006/01/02")
 	title = fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
 
-	return title, addContentFormat(contentJson3.Content)
+	return title, addContentFormat(contentJson3.Content), nil
 }
 
 func addContentFormat(content string) string {
@@ -515,7 +516,11 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	summaries := getSummaries(articles, 10, now)
-	title, content := generatePostByArticles(summaries, now)
+	title, content, err := generatePostByArticles(summaries, now)
+	if err != nil {
+		fmt.Println("ブログ記事の生成に失敗:", err)
+		return
+	}
 	url, err := post(title, content)
 	if err != nil {
 		fmt.Println("はてなブログへの投稿に失敗:", err)

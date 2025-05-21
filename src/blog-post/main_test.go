@@ -140,36 +140,36 @@ func TestContentLengthCheck(t *testing.T) {
 		name        string
 		content     string
 		minLength   int
-		shouldRetry bool
+		shouldError bool
 	}{
 		{
-			name:        "Short content should trigger retry",
+			name:        "Short content should cause an error",
 			content:     "これは短すぎる文章です。",
 			minLength:   1000,
-			shouldRetry: true,
+			shouldError: true,
 		},
 		{
-			name:        "Long enough content should not trigger retry",
+			name:        "Long enough content should not cause an error",
 			content:     generateLongJapaneseText(1500),
 			minLength:   1000,
-			shouldRetry: false,
+			shouldError: false,
 		},
 		{
-			name:        "Content exactly at minimum length should not trigger retry",
+			name:        "Content exactly at minimum length should not cause an error",
 			content:     generateLongJapaneseText(1000),
 			minLength:   1000,
-			shouldRetry: false,
+			shouldError: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			contentLength := utf8.RuneCountInString(tc.content)
-			needsRetry := contentLength < tc.minLength
+			hasError := contentLength < tc.minLength
 
-			if needsRetry != tc.shouldRetry {
-				t.Errorf("Content length check failed: got length %d, minLength %d, needsRetry = %v, want %v",
-					contentLength, tc.minLength, needsRetry, tc.shouldRetry)
+			if hasError != tc.shouldError {
+				t.Errorf("Content length check failed: got length %d, minLength %d, hasError = %v, want %v",
+					contentLength, tc.minLength, hasError, tc.shouldError)
 			}
 		})
 	}
