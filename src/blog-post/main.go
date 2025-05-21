@@ -505,7 +505,6 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
 		fmt.Println("タイムゾーンの取得に失敗:", err)
-		http.Error(w, fmt.Sprintf("タイムゾーンの取得に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -515,41 +514,32 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	articles, err := getLatestFromRSS(searchword, now, nil, "")
 	if err != nil {
 		fmt.Println("RSSフィードの取得に失敗:", err)
-		http.Error(w, fmt.Sprintf("RSSフィードの取得に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	summaries, err := getSummaries(articles, 10, now)
 	if err != nil {
 		fmt.Println("記事サマリーの取得に失敗:", err)
-		http.Error(w, fmt.Sprintf("記事サマリーの取得に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	title, content, err := generatePostByArticles(summaries, now)
 	if err != nil {
 		fmt.Println("ブログ記事の生成に失敗:", err)
-		http.Error(w, fmt.Sprintf("ブログ記事の生成に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 	url, err := post(title, content)
 	if err != nil {
 		fmt.Println("はてなブログへの投稿に失敗:", err)
-		http.Error(w, fmt.Sprintf("はてなブログへの投稿に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
 	err = postMessageToSlack(message)
 	if err != nil {
-		fmt.Println("Slackへの投稿に失敗:", err)
-		http.Error(w, fmt.Sprintf("Slackへの投稿に失敗: %v", err), http.StatusInternalServerError)
+		fmt.Println("failed to post message to slack", "error", err)
 		return
 	}
-
-	// 処理が成功した場合の応答
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "ブログ投稿に成功しました: %s", url)
 }
 
 func init() {
