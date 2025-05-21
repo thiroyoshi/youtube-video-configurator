@@ -258,6 +258,7 @@ func getSummaries(articles []Article, limit int, now time.Time) (string, error) 
 		slog.Info("Article summary generated", 
 			"title", article.Title,
 			"link", article.Link,
+			"response", resp,
 			"response_length", len(resp))
 
 		summaries = append(summaries, fmt.Sprintf("%s: %s, %s", article.Title, article.Link, resp))
