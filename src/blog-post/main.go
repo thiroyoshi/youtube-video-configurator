@@ -18,7 +18,6 @@ import (
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	openai "github.com/openai/openai-go"
 	option "github.com/openai/openai-go/option"
-	param "github.com/openai/openai-go/packages/param"
 )
 
 // ブログ記事初版生成用のプロンプト
@@ -243,11 +242,6 @@ func getSummaries(articles []Article, limit int, now time.Time) (string, error) 
 			Model: openai.ChatModelGPT4oSearchPreview2025_03_11,
 			WebSearchOptions: openai.ChatCompletionNewParamsWebSearchOptions{
 				SearchContextSize: "medium",
-				UserLocation: openai.ChatCompletionNewParamsWebSearchOptionsUserLocation{
-					Approximate: openai.ChatCompletionNewParamsWebSearchOptionsUserLocationApproximate{
-						Timezone: param.Opt[string]{Value: "Asia/Tokyo"},
-					},
-				},
 			},
 		})
 		if err != nil {
