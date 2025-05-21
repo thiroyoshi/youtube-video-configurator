@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // TestCase は getLatestFromRSS のテストケースを表す構造体
@@ -131,4 +132,67 @@ func TestGetLatestFromRSS(t *testing.T) {
 			}
 		})
 	}
+}
+
+// テキストの長さチェック関数のテスト
+func TestContentLengthCheck(t *testing.T) {
+	testCases := []struct {
+		name        string
+		content     string
+		minLength   int
+		shouldRetry bool
+	}{
+		{
+			name:        "Short content should trigger retry",
+			content:     "これは短すぎる文章です。",
+			minLength:   1000,
+			shouldRetry: true,
+		},
+		{
+			name:        "Long enough content should not trigger retry",
+			content:     generateLongJapaneseText(1500),
+			minLength:   1000,
+			shouldRetry: false,
+		},
+		{
+			name:        "Content exactly at minimum length should not trigger retry",
+			content:     generateLongJapaneseText(1000),
+			minLength:   1000,
+			shouldRetry: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			contentLength := utf8.RuneCountInString(tc.content)
+			needsRetry := contentLength < tc.minLength
+
+			if needsRetry != tc.shouldRetry {
+				t.Errorf("Content length check failed: got length %d, minLength %d, needsRetry = %v, want %v",
+					contentLength, tc.minLength, needsRetry, tc.shouldRetry)
+			}
+		})
+	}
+}
+
+// テスト用に特定の長さの日本語テキストを生成する関数
+func generateLongJapaneseText(length int) string {
+	// 適当な日本語テキストのパターン
+	pattern := "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん"
+	
+	// テキストを指定の長さになるまで追加
+	var result string
+	runeCount := 0
+	for runeCount < length {
+		result += pattern
+		runeCount = utf8.RuneCountInString(result)
+	}
+	
+	// 結果を特定の長さにトリミング
+	runes := []rune(result)
+	if len(runes) > length {
+		runes = runes[:length]
+	}
+	
+	return string(runes)
 }

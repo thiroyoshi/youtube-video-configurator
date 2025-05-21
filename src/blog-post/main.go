@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	openai "github.com/openai/openai-go"
@@ -249,79 +250,101 @@ func generatePostByArticles(articles string, now time.Time) (string, string) {
 		option.WithAPIKey(config.OpenAIAPIKey),
 	)
 
-	chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage(fmt.Sprintf(prompt2, articles)),
-		},
-		Model: openai.ChatModelO1,
-	})
-	if err != nil {
-		panic(err.Error())
-	}
-
-	resp := chatCompletion.Choices[0].Message.Content
-	resp = strings.TrimPrefix(resp, "```json\n")
-	resp = strings.ReplaceAll(resp, "`", "")
-
-	var contentJson2 ContentJson
-	err = json.Unmarshal([]byte(resp), &contentJson2)
-	if err != nil {
-		fmt.Println(resp)
-		panic(err.Error())
-	}
-
-	fmt.Println("content2:", contentJson2.Content)
-
-	// == second phase : 初版の推敲 ==
-	prompt3 := `
-	あなたはFortnite専門のプロブロガーです。
-	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
-
-	後述するブログ記事の内容をもとにして、以下の条件に合うようにブログ記事を修正し、新たにタイトルを作成してください。
-
-	[条件]
-	・記事の内容について、現在をブログ記事として60点と考え、それを100点になるように修正すること
-	・記事の末尾には、記事全体を総括したまとめを入れる
-	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
-	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
-	{
-		"title": "記事のタイトル",
-		"content": "記事の内容"
-	}
-
-	以下が元となるブログ記事である。
-
-	%s
-
-	万が一、要求通りに修正できない場合には、json形式で出力するのみとすること
-	`
-
-	chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage(fmt.Sprintf(prompt3, contentJson2.Content)),
-		},
-		Model: openai.ChatModelO1Preview,
-	})
-	if err != nil {
-		panic(err.Error())
-	}
-
-	resp = chatCompletion.Choices[0].Message.Content
-	resp = strings.TrimPrefix(resp, "```json\n")
-	resp = strings.ReplaceAll(resp, "`", "")
-
 	var contentJson3 ContentJson
-	err = json.Unmarshal([]byte(resp), &contentJson3)
-	if err != nil {
-		fmt.Println(resp)
-		fmt.Println("Unmarshal error:", err)
-		return contentJson2.Title, addContentFormat(contentJson2.Content)
-	}
+	var title string
+	maxRetries := 3
+	minContentLength := 1000
 
-	fmt.Println("content3:", contentJson3.Content)
+	// Generate blog post with retry logic for short content
+	for i := 0; i < maxRetries; i++ {
+		chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(fmt.Sprintf(prompt2, articles)),
+			},
+			Model: openai.ChatModelO1,
+		})
+		if err != nil {
+			panic(err.Error())
+		}
+
+		resp := chatCompletion.Choices[0].Message.Content
+		resp = strings.TrimPrefix(resp, "```json\n")
+		resp = strings.ReplaceAll(resp, "`", "")
+
+		var contentJson2 ContentJson
+		err = json.Unmarshal([]byte(resp), &contentJson2)
+		if err != nil {
+			fmt.Println(resp)
+			panic(err.Error())
+		}
+
+		fmt.Println("content2:", contentJson2.Content)
+
+		// == second phase : 初版の推敲 ==
+		prompt3 := `
+		あなたはFortnite専門のプロブロガーです。
+		自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
+
+		後述するブログ記事の内容をもとにして、以下の条件に合うようにブログ記事を修正し、新たにタイトルを作成してください。
+
+		[条件]
+		・記事の内容について、現在をブログ記事として60点と考え、それを100点になるように修正すること
+		・記事の末尾には、記事全体を総括したまとめを入れる
+		・記事の内容ははてなブログに投稿するためにHTML形式で出力する
+		・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
+		{
+			"title": "記事のタイトル",
+			"content": "記事の内容"
+		}
+
+		以下が元となるブログ記事である。
+
+		%s
+
+		万が一、要求通りに修正できない場合には、json形式で出力するのみとすること
+		`
+
+		chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(fmt.Sprintf(prompt3, contentJson2.Content)),
+			},
+			Model: openai.ChatModelO1Preview,
+		})
+		if err != nil {
+			panic(err.Error())
+		}
+
+		resp = chatCompletion.Choices[0].Message.Content
+		resp = strings.TrimPrefix(resp, "```json\n")
+		resp = strings.ReplaceAll(resp, "`", "")
+
+		err = json.Unmarshal([]byte(resp), &contentJson3)
+		if err != nil {
+			fmt.Println(resp)
+			fmt.Println("Unmarshal error:", err)
+			return contentJson2.Title, addContentFormat(contentJson2.Content)
+		}
+
+		fmt.Println("content3:", contentJson3.Content)
+
+		// Check if the content is long enough
+		if utf8.RuneCountInString(contentJson3.Content) >= minContentLength {
+			// Content is long enough, break the retry loop
+			fmt.Println("Generated content length:", utf8.RuneCountInString(contentJson3.Content), "characters")
+			break
+		}
+
+		// Content is too short, retry
+		fmt.Println("Generated content is too short:", utf8.RuneCountInString(contentJson3.Content), "characters. Retrying...")
+		
+		// If this is the last retry and content is still too short, use the content anyway
+		if i == maxRetries-1 {
+			fmt.Println("Max retries reached. Using the last generated content despite being too short.")
+		}
+	}
 
 	pubDate := now.Format("2006/01/02")
-	title := fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
+	title = fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
 
 	return title, addContentFormat(contentJson3.Content)
 }
