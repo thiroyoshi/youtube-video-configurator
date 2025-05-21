@@ -171,6 +171,11 @@ func updateVideoSnippet(videoID, title, accessToken string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		// Read the response body for more details
 		body, _ := io.ReadAll(resp.Body)
+		defer func() {
+			if cerr := resp.Body.Close(); cerr != nil {
+				slog.Error("failed to close response body", "error", cerr)
+			}
+		}()
 		slog.Error("failed to update snippet", "status", resp.Status, "body", string(body))
 		return nil, fmt.Errorf("failed to update snippet: status code %d", resp.StatusCode)
 	}
@@ -291,45 +296,42 @@ func postX(url string) error {
 	return nil
 }
 
-// Commented out as we're using slog instead of fmt for logging
-/*
-func postMessageToSlack(message string) error {
-	slackURL := "https://hooks.slack.com/services/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"
-	slackPayload := map[string]string{"text": message}
-	slackPayloadBytes, err := json.Marshal(slackPayload)
-	if err != nil {
-		slog.Error("failed to marshal slack payload", "error", err)
-		return err
-	}
+// func postMessageToSlack(message string) error {
+// 	slackURL := "https://hooks.slack.com/services/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"
+// 	slackPayload := map[string]string{"text": message}
+// 	slackPayloadBytes, err := json.Marshal(slackPayload)
+// 	if err != nil {
+// 		fmt.Println("failed to marshal slack payload", "error", err)
+// 		return err
+// 	}
 
-	req, err := http.NewRequest("POST", slackURL, bytes.NewBuffer(slackPayloadBytes))
-	if err != nil {
-		slog.Error("failed to create slack request", "error", err)
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
+// 	req, err := http.NewRequest("POST", slackURL, bytes.NewBuffer(slackPayloadBytes))
+// 	if err != nil {
+// 		fmt.Println("failed to create slack request", "error", err)
+// 		return err
+// 	}
+// 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		slog.Error("failed to send slack request", "error", err)
-		return err
-	}
-	defer func() {
-		if cerr := resp.Body.Close(); cerr != nil {
-			slog.Error("failed to close slack response body", "error", cerr)
-		}
-	}()
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		fmt.Println("failed to send slack request", "error", err)
+// 		return err
+// 	}
+// 	defer func() {
+// 		if cerr := resp.Body.Close(); cerr != nil {
+// 			fmt.Println("failed to close slack response body", "error", cerr)
+// 		}
+// 	}()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		slog.Error("slack returned non-2xx status", "status", resp.StatusCode)
-		return fmt.Errorf("slack returned non-2xx status: %d", resp.StatusCode)
-	}
+// 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+// 		fmt.Printf("slack returned non-2xx status: %d\n", resp.StatusCode)
+// 		return fmt.Errorf("slack returned non-2xx status: %d", resp.StatusCode)
+// 	}
 
-	slog.Info("successfully posted message to slack")
-	return nil
-}
-*/
+// 	fmt.Println("successfully posted message to slack")
+// 	return nil
+// }
 
 // videoConverter is an HTTP Cloud Function.
 func videoConverter(w http.ResponseWriter, r *http.Request) {
