@@ -150,7 +150,7 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	lastweek := now.AddDate(0, 0, -7).Format("2006-01-02")
 
 	url := fmt.Sprintf("%s?q=%s+after:%s+before:%s&hl=ja&gl=JP&ceid=JP:ja", baseURL, searchword, lastweek, today)
-	fmt.Println("url:", url)
+	slog.Info("RSS feed URL", "url", url)
 
 	// RSSフィードを取得
 	resp, err := httpClient.Get(url)
@@ -186,14 +186,14 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 		})
 	}
 
-	fmt.Println("取得した記事数:", len(articles))
+	slog.Info("Articles retrieved from RSS feed", "count", len(articles))
 
 	// articlesを日付が最新になるようソート
 	sort.Slice(articles, func(i, j int) bool {
 		return articles[i].PubDate.After(articles[j].PubDate)
 	})
 
-	fmt.Println("articles:", articles)
+	slog.Info("Articles sorted by date", "articles", articles)
 
 	return articles, nil
 }
@@ -255,11 +255,10 @@ func getSummaries(articles []Article, limit int, now time.Time) (string, error) 
 		}
 
 		resp := chatCompletion.Choices[0].Message.Content
-		fmt.Println("=====================")
-		fmt.Println(article.Title)
-		fmt.Println(article.Link)
-		fmt.Println(resp)
-		fmt.Println("=====================")
+		slog.Info("Article summary generated", 
+			"title", article.Title,
+			"link", article.Link,
+			"response_length", len(resp))
 
 		summaries = append(summaries, fmt.Sprintf("%s: %s, %s", article.Title, article.Link, resp))
 	}
@@ -302,11 +301,11 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		var contentJson2 ContentJson
 		err = json.Unmarshal([]byte(resp), &contentJson2)
 		if err != nil {
-			fmt.Println(resp)
+			slog.Error("Failed to parse initial response JSON", "response", resp, "error", err)
 			return "", "", fmt.Errorf("初版レスポンスのJSONパースに失敗: %w", err)
 		}
 
-		fmt.Println("content2:", contentJson2.Content)
+		slog.Info("Initial content generated", "length", len(contentJson2.Content))
 
 		// == second phase : 初版の推敲 ==
 		chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
@@ -325,23 +324,26 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 
 		err = json.Unmarshal([]byte(resp), &contentJson3)
 		if err != nil {
-			fmt.Println(resp)
-			fmt.Println("Unmarshal error:", err)
+			slog.Error("Failed to parse refined response JSON", "response", resp, "error", err)
 			// JSONパースに失敗した場合は初版のコンテンツを使用
 			contentJson3 = contentJson2
 		}
 
-		fmt.Println("content3:", contentJson3.Content)
+		slog.Info("Refined content generated", "length", len(contentJson3.Content))
 
 		// Check if the content is long enough
 		if utf8.RuneCountInString(contentJson3.Content) >= minContentLength {
 			// Content is long enough, break the retry loop
-			fmt.Println("Generated content length:", utf8.RuneCountInString(contentJson3.Content), "characters")
+			slog.Info("Generated content meets length requirement", "length", utf8.RuneCountInString(contentJson3.Content))
 			break
 		}
 
 		// Content is too short, retry
-		fmt.Println("Generated content is too short:", utf8.RuneCountInString(contentJson3.Content), "characters. Retrying...")
+		slog.Info("Generated content is too short, retrying", 
+			"length", utf8.RuneCountInString(contentJson3.Content), 
+			"required", minContentLength,
+			"attempt", i+1,
+			"maxRetries", maxRetries)
 
 		// If this is the last retry and content is still too short, return an error
 		if i == maxRetries-1 {

@@ -210,13 +210,13 @@ func addVideoToPlaylist(videoID, playListId, accessToken string) ([]byte, error)
 			slog.Error("failed to close response body", "error", cerr)
 		}
 	}()
-	fmt.Println("add video to playlist response Status:", resp.Status)
+	slog.Info("Add video to playlist response", "status", resp.Status)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err
 	}
-	fmt.Println(string(body))
+	slog.Info("Playlist response", "body", string(body))
 
 	return body, nil
 }
@@ -287,8 +287,7 @@ func postX(url string) error {
 	}
 
 	// 結果を表示
-	fmt.Println("レスポンスステータス:", resp.Status)
-	fmt.Println("レスポンスボディ:", string(body))
+	slog.Info("X API response", "status", resp.Status, "body", string(body))
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("twitter API returned unexpected status code: %d", resp.StatusCode)
@@ -376,7 +375,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	fmt.Println("body:", string(body))
+	slog.Info("Request body", "body", string(body))
 
 	// Parse RequestData
 	jsonBytes := ([]byte)(body)
@@ -389,7 +388,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	fmt.Println("data:", data)
+	slog.Info("Function request data", "data", data)
 
 	// Get videoId
 	dataStrings := strings.Split(data.URL, "?v=")
