@@ -137,15 +137,11 @@ func TestGetLatestFromRSS(t *testing.T) {
 func TestLoadFromEnv(t *testing.T) {
 	// 環境変数をテスト後に元に戻すための保存
 	oldOpenAI := os.Getenv("OPENAI_API_KEY")
-	oldHatenaId := os.Getenv("HATENA_ID")
-	oldHatenaBlogId := os.Getenv("HATENA_BLOG_ID")
 	oldHatenaApiKey := os.Getenv("HATENA_API_KEY")
 
 	// テスト後に環境変数を元に戻す
 	defer func() {
 		os.Setenv("OPENAI_API_KEY", oldOpenAI)
-		os.Setenv("HATENA_ID", oldHatenaId)
-		os.Setenv("HATENA_BLOG_ID", oldHatenaBlogId)
 		os.Setenv("HATENA_API_KEY", oldHatenaApiKey)
 	}()
 
@@ -157,18 +153,16 @@ func TestLoadFromEnv(t *testing.T) {
 		wantVals map[string]string
 	}{
 		{
-			name: "すべての環境変数が設定されている場合",
+			name: "すべての必要な環境変数が設定されている場合",
 			envVars: map[string]string{
 				"OPENAI_API_KEY": "test_openai_key",
-				"HATENA_ID":      "test_hatena_id",
-				"HATENA_BLOG_ID": "test_hatena_blog_id",
 				"HATENA_API_KEY": "test_hatena_api_key",
 			},
 			wantNil: false,
 			wantVals: map[string]string{
 				"OpenAIAPIKey": "test_openai_key",
-				"HatenaId":     "test_hatena_id",
-				"HatenaBlogId": "test_hatena_blog_id", 
+				"HatenaId":     "hatena36",
+				"HatenaBlogId": "gaba3h.hatenadiary.jp",
 				"HatenaApiKey": "test_hatena_api_key",
 			},
 		},
@@ -176,8 +170,7 @@ func TestLoadFromEnv(t *testing.T) {
 			name: "一部の環境変数が設定されていない場合",
 			envVars: map[string]string{
 				"OPENAI_API_KEY": "test_openai_key",
-				"HATENA_ID":      "test_hatena_id",
-				// HATENA_BLOG_IDとHATENA_API_KEYは未設定
+				// HATENA_API_KEYは未設定
 			},
 			wantNil: true,
 		},
@@ -192,8 +185,6 @@ func TestLoadFromEnv(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// 環境変数をクリア
 			os.Unsetenv("OPENAI_API_KEY")
-			os.Unsetenv("HATENA_ID")
-			os.Unsetenv("HATENA_BLOG_ID")
 			os.Unsetenv("HATENA_API_KEY")
 
 			// テストケースの環境変数を設定

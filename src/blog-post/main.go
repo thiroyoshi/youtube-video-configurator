@@ -29,16 +29,16 @@ type Config struct {
 func loadFromEnv() *Config {
 	// GCPのシークレットマネージャーからの環境変数値
 	// 環境変数の値が "sm://" で始まる場合、Secret Managerからの自動取得済み値として扱われる
+	// HatenaIdとHatenaBlogIdは固定値として定義
 	config := &Config{
 		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
-		HatenaId:     os.Getenv("HATENA_ID"),
-		HatenaBlogId: os.Getenv("HATENA_BLOG_ID"),
+		HatenaId:     "hatena36",
+		HatenaBlogId: "gaba3h.hatenadiary.jp",
 		HatenaApiKey: os.Getenv("HATENA_API_KEY"),
 	}
 
-	// すべての設定値が指定されていることを確認
-	if config.OpenAIAPIKey != "" && config.HatenaId != "" &&
-		config.HatenaBlogId != "" && config.HatenaApiKey != "" {
+	// 必要な設定値が指定されていることを確認
+	if config.OpenAIAPIKey != "" && config.HatenaApiKey != "" {
 		return config
 	}
 	return nil

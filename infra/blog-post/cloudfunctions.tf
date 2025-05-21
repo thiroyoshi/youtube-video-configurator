@@ -16,8 +16,6 @@ resource "google_cloudfunctions2_function" "blog_post" {
     environment_variables = {
       GOOGLE_CLOUD_PROJECT = var.project_id
       OPENAI_API_KEY       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.openai_api_key.secret_id}/versions/latest"
-      HATENA_ID            = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.hatena_id.secret_id}/versions/latest"
-      HATENA_BLOG_ID       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.hatena_blog_id.secret_id}/versions/latest"
       HATENA_API_KEY       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.hatena_api_key.secret_id}/versions/latest"
     }
     min_instance_count             = 0
