@@ -26,19 +26,57 @@ type Config struct {
 	HatenaApiKey string `json:"hatena_api_key"`
 }
 
+func loadFromEnv() *Config {
+	// GCPのシークレットマネージャーからの環境変数値
+	// 環境変数の値が "sm://" で始まる場合、Secret Managerからの自動取得済み値として扱われる
+	config := &Config{
+		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
+		HatenaId:     os.Getenv("HATENA_ID"),
+		HatenaBlogId: os.Getenv("HATENA_BLOG_ID"),
+		HatenaApiKey: os.Getenv("HATENA_API_KEY"),
+	}
+
+	// すべての設定値が指定されていることを確認
+	if config.OpenAIAPIKey != "" && config.HatenaId != "" && 
+	   config.HatenaBlogId != "" && config.HatenaApiKey != "" {
+		return config
+	}
+	return nil
+}
+
 func loadConfig() (*Config, error) {
+	// 1. 環境変数から設定を読み込む
+	config := loadFromEnv()
+	if config != nil {
+		return config, nil
+	}
+
+	// 2. 環境変数による設定が不完全な場合、設定ファイルから読み込む
 	configFile := "config.json"
 	data, err := os.ReadFile(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
+		// 設定ファイルの読み込みに失敗した場合、エラーを返すが中断はしない
+		fmt.Printf("設定ファイルの読み込みに失敗: %v\n", err)
+		
+		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
+		if config == nil {
+			return nil, fmt.Errorf("環境変数および設定ファイルから設定を取得できません")
+		}
+		return config, nil
 	}
 
-	var config Config
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("JSONのパースに失敗: %v", err)
+	var fileConfig Config
+	if err := json.Unmarshal(data, &fileConfig); err != nil {
+		fmt.Printf("JSONのパースに失敗: %v\n", err)
+		
+		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
+		if config == nil {
+			return nil, fmt.Errorf("環境変数および設定ファイルから設定を取得できません")
+		}
+		return config, nil
 	}
 
-	return &config, nil
+	return &fileConfig, nil
 }
 
 // AtomPub API に送る XML の構造体
@@ -148,7 +186,8 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 func getSummaries(articles []Article, limit int, now time.Time) string {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		fmt.Printf("設定の読み込みに失敗: %v\n", err)
+		return ""
 	}
 
 	today := now.Format("2006年01月02日")
@@ -217,7 +256,8 @@ func getSummaries(articles []Article, limit int, now time.Time) string {
 func generatePostByArticles(articles string, now time.Time) (string, string) {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		fmt.Printf("設定の読み込みに失敗: %v\n", err)
+		return "", ""
 	}
 
 	// == first phase : 初版の作成 ==
@@ -371,7 +411,8 @@ func addContentFormat(content string) string {
 func post(title, content string) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		fmt.Printf("設定の読み込みに失敗: %v\n", err)
+		return "", err
 	}
 
 	// はてなブログ API のエンドポイント
