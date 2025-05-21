@@ -109,7 +109,6 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			err = fmt.Errorf("レスポンスのクローズに失敗: %v", cerr)
 			slog.Error("failed to close response body", "error", cerr)
 		}
 	}()
@@ -204,12 +203,11 @@ func getSummaries(articles []Article, limit int, now time.Time) string {
 		}
 
 		resp := chatCompletion.Choices[0].Message.Content
-		slog.Info("article summary", 
-			"delimiter", "=====================",
-			"title", article.Title,
-			"link", article.Link,
-			"summary", resp,
-			"delimiter", "=====================")
+		fmt.Println("=====================")
+		fmt.Println(article.Title)
+		fmt.Println(article.Link)
+		fmt.Println(resp)
+		fmt.Println("=====================")
 
 		summaries = append(summaries, fmt.Sprintf("%s: %s, %s", article.Title, article.Link, resp))
 	}
