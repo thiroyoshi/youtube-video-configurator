@@ -472,12 +472,12 @@ func postMessageToSlack(message string) error {
 	return nil
 }
 
-// BlogPost is an HTTP Cloud Function.
-func BlogPost(w http.ResponseWriter, r *http.Request) {
+// RunBlogPost executes the blog post process directly without HTTP context
+func RunBlogPost() error {
 	// Get Time Object of JST
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to load JST location: %v", err)
 	}
 
 	now := time.Now().In(jst)
@@ -485,25 +485,32 @@ func BlogPost(w http.ResponseWriter, r *http.Request) {
 
 	articles, err := getLatestFromRSS(searchword, now, nil, "")
 	if err != nil {
-		fmt.Println("RSSフィードの取得に失敗:", err)
-		return
+		return fmt.Errorf("RSSフィードの取得に失敗: %v", err)
 	}
 
 	summaries := getSummaries(articles, 10, now)
 	title, content := generatePostByArticles(summaries, now)
 	url, err := post(title, content)
 	if err != nil {
-		fmt.Println("はてなブログへの投稿に失敗:", err)
-		return
+		return fmt.Errorf("はてなブログへの投稿に失敗: %v", err)
 	}
 
 	message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
 	err = postMessageToSlack(message)
 	if err != nil {
-		fmt.Println("failed to post message to slack", "error", err)
-		return
+		return fmt.Errorf("failed to post message to slack: %v", err)
 	}
 
+	fmt.Printf("Blog post successfully completed!\nTitle: %s\nURL: %s\n", title, url)
+	return nil
+}
+
+// BlogPost is an HTTP Cloud Function.
+func BlogPost(w http.ResponseWriter, r *http.Request) {
+	err := RunBlogPost()
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func init() {

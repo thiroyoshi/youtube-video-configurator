@@ -10,7 +10,20 @@
 
 #### ローカル実行
 
-ブログ投稿機能はローカルでも実行可能です。詳細は [cmd/blog-post/README.md](cmd/blog-post/README.md) を参照してください。
+ブログ投稿機能はローカルでも実行可能です。コマンドラインから直接実行できるため、任意のタイミングで簡単に使用できます。
+
+```bash
+# ディレクトリに移動
+cd cmd/blog-post
+
+# ビルド
+go build
+
+# 実行
+./blog-post
+```
+
+詳細は [src/blog-post/README.md](src/blog-post/README.md) を参照してください。
 
 ### Convert Starter
 

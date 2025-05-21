@@ -1,6 +1,6 @@
 # Blog Post - Local Execution
 
-This directory contains the code for running the blog-post Cloud Function locally.
+This directory contains the code for running the blog-post Cloud Function locally directly from the command line.
 
 ## Prerequisites
 
@@ -19,19 +19,17 @@ This directory contains the code for running the blog-post Cloud Function locall
    go build
    ```
 
-3. Run the local server:
+3. Run the function directly:
    ```
    ./blog-post
    ```
 
-   The server will start on port 8080 by default. You can change the port by setting the PORT environment variable:
-   ```
-   PORT=9000 ./blog-post
-   ```
+   This will execute the blog post function immediately without starting a server.
 
-4. Access the server:
-   - Open a web browser and navigate to `http://localhost:8080`
-   - Or use curl: `curl http://localhost:8080`
+4. For quick testing during development, you can use `go run`:
+   ```
+   go run main.go
+   ```
 
 ## Configuration
 
@@ -48,5 +46,5 @@ Ensure that you have a `config.json` file in the working directory with the foll
 
 ## Notes
 
-- The local version accesses the same `BlogPost` function that is deployed as a Cloud Function
+- The local version accesses the same core blog post function that is deployed as a Cloud Function
 - Any changes you make to the core logic in `src/blog-post/main.go` will affect both the local and cloud versions
