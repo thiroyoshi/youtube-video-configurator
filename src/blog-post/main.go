@@ -150,7 +150,7 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	lastweek := now.AddDate(0, 0, -7).Format("2006-01-02")
 
 	url := fmt.Sprintf("%s?q=%s+after:%s+before:%s&hl=ja&gl=JP&ceid=JP:ja", baseURL, searchword, lastweek, today)
-	slog.Info("RSS feed URL", "url", url)
+	fmt.Println("url:", url)
 
 	// RSSフィードを取得
 	resp, err := httpClient.Get(url)
@@ -159,7 +159,7 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			slog.Error("failed to close response body", "error", cerr)
+			err = fmt.Errorf("レスポンスのクローズに失敗: %v", cerr)
 		}
 	}()
 
@@ -184,14 +184,14 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 		})
 	}
 
-	slog.Info("retrieved articles", "count", len(articles))
+	fmt.Println("取得した記事数:", len(articles))
 
 	// articlesを日付が最新になるようソート
 	sort.Slice(articles, func(i, j int) bool {
 		return articles[i].PubDate.After(articles[j].PubDate)
 	})
 
-	slog.Info("sorted articles", "articles", articles)
+	fmt.Println("articles:", articles)
 
 	return articles, nil
 }
@@ -300,11 +300,14 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		var contentJson2 ContentJson
 		err = json.Unmarshal([]byte(resp), &contentJson2)
 		if err != nil {
-			slog.Error("failed to unmarshal initial content", "response", resp, "error", err)
+		var contentJson2 ContentJson
+		err = json.Unmarshal([]byte(resp), &contentJson2)
+		if err != nil {
+			fmt.Println(resp)
 			return "", "", fmt.Errorf("初版レスポンスのJSONパースに失敗: %w", err)
 		}
 
-		slog.Info("content generation phase 1 complete", "content", contentJson2.Content)
+		fmt.Println("content2:", contentJson2.Content)
 
 		// == second phase : 初版の推敲 ==
 		chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
@@ -323,22 +326,23 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 
 		err = json.Unmarshal([]byte(resp), &contentJson3)
 		if err != nil {
-			slog.Error("failed to unmarshal refined content", "response", resp, "error", err)
+			fmt.Println(resp)
+			fmt.Println("Unmarshal error:", err)
 			// JSONパースに失敗した場合は初版のコンテンツを使用
 			contentJson3 = contentJson2
 		}
 
-		slog.Info("content generation phase 2 complete", "content", contentJson3.Content)
+		fmt.Println("content3:", contentJson3.Content)
 
 		// Check if the content is long enough
 		if utf8.RuneCountInString(contentJson3.Content) >= minContentLength {
 			// Content is long enough, break the retry loop
-			slog.Info("generated content meets length requirements", "length", utf8.RuneCountInString(contentJson3.Content))
+			fmt.Println("Generated content length:", utf8.RuneCountInString(contentJson3.Content), "characters")
 			break
 		}
 
 		// Content is too short, retry
-		slog.Info("generated content is too short, retrying", "length", utf8.RuneCountInString(contentJson3.Content), "minimum", minContentLength, "attempt", i+1)
+		fmt.Println("Generated content is too short:", utf8.RuneCountInString(contentJson3.Content), "characters. Retrying...")
 
 		// If this is the last retry and content is still too short, return an error
 		if i == maxRetries-1 {
@@ -388,7 +392,6 @@ func addContentFormat(content string) string {
 	b := make([]byte, 1)
 	if _, err := rand.Read(b); err != nil {
 		// エラーが発生した場合は最初のリンクを使用
-		slog.Error("failed to generate random number", "error", err)
 		return hello + content + links[0] + disclaimer
 	}
 	index := int(b[0]) % len(links)
@@ -418,18 +421,18 @@ func post(title, content string) (string, error) {
 	// XML に変換
 	xmlData, err := xml.MarshalIndent(entry, "", "  ")
 	if err != nil {
-		slog.Error("XML encoding error", "error", err)
+		fmt.Println("XML エンコードエラー:", err)
 		return "", err
 	}
 
 	xmlWithHeader := append([]byte(xml.Header), xmlData...)
 
-	slog.Info("prepared XML request", "xml", string(xmlWithHeader))
+	fmt.Println(string(xmlWithHeader))
 
 	// HTTP リクエスト作成
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(xmlWithHeader))
 	if err != nil {
-		slog.Error("failed to create request", "error", err)
+		fmt.Println("リクエスト作成エラー:", err)
 		return "", err
 	}
 
@@ -441,24 +444,24 @@ func post(title, content string) (string, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("failed to send request", "error", err)
+		fmt.Println("リクエスト送信エラー:", err)
 		return "", err
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			slog.Error("failed to close response body", "error", cerr)
+			fmt.Printf("レスポンスのクローズに失敗: %v\n", cerr)
 		}
 	}()
 
 	// 結果を表示
-	slog.Info("response received", "status", resp.Status)
+	fmt.Println("ステータスコード:", resp.Status)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		slog.Error("Hatena Blog API error", "status_code", resp.StatusCode)
+		fmt.Printf("はてなブログ API エラー: %d\n", resp.StatusCode)
 		return "", fmt.Errorf("はてなブログ API エラー: %d", resp.StatusCode)
 	}
 
 	entryURL := resp.Header.Get("Location")
-	slog.Info("post successful", "url", entryURL)
+	fmt.Println("記事URL:", entryURL)
 
 	return entryURL, nil
 }
@@ -468,13 +471,13 @@ func postMessageToSlack(message string) error {
 	slackPayload := map[string]string{"text": message}
 	slackPayloadBytes, err := json.Marshal(slackPayload)
 	if err != nil {
-		slog.Error("failed to marshal slack payload", "error", err)
+		fmt.Println("failed to marshal slack payload", "error", err)
 		return err
 	}
 
 	req, err := http.NewRequest("POST", slackURL, bytes.NewBuffer(slackPayloadBytes))
 	if err != nil {
-		slog.Error("failed to create slack request", "error", err)
+		fmt.Println("failed to create slack request", "error", err)
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -482,21 +485,21 @@ func postMessageToSlack(message string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("failed to send slack request", "error", err)
+		fmt.Println("failed to send slack request", "error", err)
 		return err
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			slog.Error("failed to close slack response body", "error", cerr)
+			fmt.Println("failed to close slack response body", "error", cerr)
 		}
 	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		slog.Error("slack returned non-2xx status", "status_code", resp.StatusCode)
+		fmt.Printf("slack returned non-2xx status: %d\n", resp.StatusCode)
 		return fmt.Errorf("slack returned non-2xx status: %d", resp.StatusCode)
 	}
 
-	slog.Info("successfully posted message to slack")
+	fmt.Println("successfully posted message to slack")
 	return nil
 }
 
@@ -505,7 +508,7 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	// Get Time Object of JST
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
-		slog.Error("failed to load JST location", "error", err)
+		fmt.Println("タイムゾーンの取得に失敗:", err)
 		return
 	}
 
@@ -514,31 +517,31 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 
 	articles, err := getLatestFromRSS(searchword, now, nil, "")
 	if err != nil {
-		slog.Error("failed to get RSS feed", "error", err)
+		fmt.Println("RSSフィードの取得に失敗:", err)
 		return
 	}
 
 	summaries, err := getSummaries(articles, 10, now)
 	if err != nil {
-		slog.Error("failed to get article summaries", "error", err)
+		fmt.Println("記事サマリーの取得に失敗:", err)
 		return
 	}
 
 	title, content, err := generatePostByArticles(summaries, now)
 	if err != nil {
-		slog.Error("failed to generate blog post", "error", err)
+		fmt.Println("ブログ記事の生成に失敗:", err)
 		return
 	}
 	url, err := post(title, content)
 	if err != nil {
-		slog.Error("failed to post to Hatena Blog", "error", err)
+		fmt.Println("はてなブログへの投稿に失敗:", err)
 		return
 	}
 
 	message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
 	err = postMessageToSlack(message)
 	if err != nil {
-		slog.Error("failed to post message to slack", "error", err)
+		fmt.Println("failed to post message to slack", "error", err)
 		return
 	}
 }
