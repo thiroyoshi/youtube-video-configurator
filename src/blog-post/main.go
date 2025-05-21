@@ -458,7 +458,7 @@ func post(title, content string) (string, error) {
 	slog.Info("Response status code", "status", resp.Status)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		slog.Error("Hatena Blog API error", "status_code", resp.StatusCode)
-		return "", fmt.Errorf("Hatena Blog API error: %d", resp.StatusCode)
+		return "", fmt.Errorf("hatena blog API error: %d", resp.StatusCode)
 	}
 
 	entryURL := resp.Header.Get("Location")
