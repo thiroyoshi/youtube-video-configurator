@@ -3,6 +3,7 @@ package blogpost
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
@@ -127,6 +128,100 @@ func TestGetLatestFromRSS(t *testing.T) {
 					if articles[i].PubDate.Before(articles[i+1].PubDate) {
 						t.Errorf("articles[%d] is not sorted correctly", i)
 					}
+				}
+			}
+		})
+	}
+}
+
+func TestLoadFromEnv(t *testing.T) {
+	// 環境変数をテスト後に元に戻すための保存
+	oldOpenAI := os.Getenv("OPENAI_API_KEY")
+	oldHatenaId := os.Getenv("HATENA_ID")
+	oldHatenaBlogId := os.Getenv("HATENA_BLOG_ID")
+	oldHatenaApiKey := os.Getenv("HATENA_API_KEY")
+
+	// テスト後に環境変数を元に戻す
+	defer func() {
+		os.Setenv("OPENAI_API_KEY", oldOpenAI)
+		os.Setenv("HATENA_ID", oldHatenaId)
+		os.Setenv("HATENA_BLOG_ID", oldHatenaBlogId)
+		os.Setenv("HATENA_API_KEY", oldHatenaApiKey)
+	}()
+
+	// テストケース
+	tests := []struct {
+		name     string
+		envVars  map[string]string
+		wantNil  bool
+		wantVals map[string]string
+	}{
+		{
+			name: "すべての環境変数が設定されている場合",
+			envVars: map[string]string{
+				"OPENAI_API_KEY": "test_openai_key",
+				"HATENA_ID":      "test_hatena_id",
+				"HATENA_BLOG_ID": "test_hatena_blog_id",
+				"HATENA_API_KEY": "test_hatena_api_key",
+			},
+			wantNil: false,
+			wantVals: map[string]string{
+				"OpenAIAPIKey": "test_openai_key",
+				"HatenaId":     "test_hatena_id",
+				"HatenaBlogId": "test_hatena_blog_id", 
+				"HatenaApiKey": "test_hatena_api_key",
+			},
+		},
+		{
+			name: "一部の環境変数が設定されていない場合",
+			envVars: map[string]string{
+				"OPENAI_API_KEY": "test_openai_key",
+				"HATENA_ID":      "test_hatena_id",
+				// HATENA_BLOG_IDとHATENA_API_KEYは未設定
+			},
+			wantNil: true,
+		},
+		{
+			name:    "環境変数が設定されていない場合",
+			envVars: map[string]string{},
+			wantNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 環境変数をクリア
+			os.Unsetenv("OPENAI_API_KEY")
+			os.Unsetenv("HATENA_ID")
+			os.Unsetenv("HATENA_BLOG_ID")
+			os.Unsetenv("HATENA_API_KEY")
+
+			// テストケースの環境変数を設定
+			for key, value := range tt.envVars {
+				os.Setenv(key, value)
+			}
+
+			// テスト対象の関数を実行
+			got := loadFromEnv()
+
+			// 結果を検証
+			if (got == nil) != tt.wantNil {
+				t.Errorf("loadFromEnv() returned %v, want nil: %v", got, tt.wantNil)
+			}
+
+			if !tt.wantNil && got != nil {
+				// 各フィールドの値を検証
+				if got.OpenAIAPIKey != tt.wantVals["OpenAIAPIKey"] {
+					t.Errorf("OpenAIAPIKey = %v, want %v", got.OpenAIAPIKey, tt.wantVals["OpenAIAPIKey"])
+				}
+				if got.HatenaId != tt.wantVals["HatenaId"] {
+					t.Errorf("HatenaId = %v, want %v", got.HatenaId, tt.wantVals["HatenaId"])
+				}
+				if got.HatenaBlogId != tt.wantVals["HatenaBlogId"] {
+					t.Errorf("HatenaBlogId = %v, want %v", got.HatenaBlogId, tt.wantVals["HatenaBlogId"])
+				}
+				if got.HatenaApiKey != tt.wantVals["HatenaApiKey"] {
+					t.Errorf("HatenaApiKey = %v, want %v", got.HatenaApiKey, tt.wantVals["HatenaApiKey"])
 				}
 			}
 		})

@@ -37,8 +37,8 @@ func loadFromEnv() *Config {
 	}
 
 	// すべての設定値が指定されていることを確認
-	if config.OpenAIAPIKey != "" && config.HatenaId != "" && 
-	   config.HatenaBlogId != "" && config.HatenaApiKey != "" {
+	if config.OpenAIAPIKey != "" && config.HatenaId != "" &&
+		config.HatenaBlogId != "" && config.HatenaApiKey != "" {
 		return config
 	}
 	return nil
@@ -57,7 +57,7 @@ func loadConfig() (*Config, error) {
 	if err != nil {
 		// 設定ファイルの読み込みに失敗した場合、エラーを返すが中断はしない
 		fmt.Printf("設定ファイルの読み込みに失敗: %v\n", err)
-		
+
 		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
 		if config == nil {
 			return nil, fmt.Errorf("環境変数および設定ファイルから設定を取得できません")
@@ -68,7 +68,7 @@ func loadConfig() (*Config, error) {
 	var fileConfig Config
 	if err := json.Unmarshal(data, &fileConfig); err != nil {
 		fmt.Printf("JSONのパースに失敗: %v\n", err)
-		
+
 		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
 		if config == nil {
 			return nil, fmt.Errorf("環境変数および設定ファイルから設定を取得できません")
