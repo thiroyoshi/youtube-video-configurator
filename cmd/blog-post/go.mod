@@ -4,6 +4,8 @@ go 1.24.0
 
 replace thiroyoshi.com/blog-post => ../../src/blog-post
 
+require thiroyoshi.com/blog-post v0.0.0-00010101000000-000000000000
+
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2 // indirect
 	github.com/cloudevents/sdk-go/v2 v2.15.2 // indirect
@@ -19,5 +21,4 @@ require (
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0 // indirect
-	thiroyoshi.com/blog-post v0.0.0-00010101000000-000000000000 // indirect
 )

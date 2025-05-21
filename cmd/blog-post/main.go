@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	
+
 	blogpost "thiroyoshi.com/blog-post"
 )
 
@@ -13,10 +13,10 @@ func main() {
 	// Create a simple HTTP handler that calls the blog post function
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Executing blog post function locally...")
-		
+
 		// Call the Cloud Function directly
 		blogpost.BlogPost(w, r)
-		
+
 		fmt.Println("Blog post execution completed.")
 	})
 
