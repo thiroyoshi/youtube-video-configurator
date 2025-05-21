@@ -155,6 +155,7 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	// RSSフィードを取得
 	resp, err := httpClient.Get(url)
 	if err != nil {
+		slog.Error("RSSフィードの取得に失敗", "error", err)
 		return nil, fmt.Errorf("RSSフィードの取得に失敗: %v", err)
 	}
 	defer func() {
@@ -166,6 +167,7 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	// XMLをパース
 	var rss RSS
 	if err := xml.NewDecoder(resp.Body).Decode(&rss); err != nil {
+		slog.Error("XMLのパースに失敗", "error", err)
 		return nil, fmt.Errorf("XMLのパースに失敗: %v", err)
 	}
 
@@ -297,9 +299,6 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		resp = strings.TrimPrefix(resp, "```json\n")
 		resp = strings.ReplaceAll(resp, "`", "")
 
-		var contentJson2 ContentJson
-		err = json.Unmarshal([]byte(resp), &contentJson2)
-		if err != nil {
 		var contentJson2 ContentJson
 		err = json.Unmarshal([]byte(resp), &contentJson2)
 		if err != nil {
@@ -471,12 +470,14 @@ func postMessageToSlack(message string) error {
 	slackPayload := map[string]string{"text": message}
 	slackPayloadBytes, err := json.Marshal(slackPayload)
 	if err != nil {
+		slog.Error("failed to marshal slack payload", "error", err)
 		fmt.Println("failed to marshal slack payload", "error", err)
 		return err
 	}
 
 	req, err := http.NewRequest("POST", slackURL, bytes.NewBuffer(slackPayloadBytes))
 	if err != nil {
+		slog.Error("failed to create slack request", "error", err)
 		fmt.Println("failed to create slack request", "error", err)
 		return err
 	}
@@ -485,20 +486,24 @@ func postMessageToSlack(message string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		slog.Error("failed to send slack request", "error", err)
 		fmt.Println("failed to send slack request", "error", err)
 		return err
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
+			slog.Error("failed to close slack response body", "error", cerr)
 			fmt.Println("failed to close slack response body", "error", cerr)
 		}
 	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		slog.Error("slack returned non-2xx status", "status", resp.StatusCode)
 		fmt.Printf("slack returned non-2xx status: %d\n", resp.StatusCode)
 		return fmt.Errorf("slack returned non-2xx status: %d", resp.StatusCode)
 	}
 
+	slog.Info("successfully posted message to slack")
 	fmt.Println("successfully posted message to slack")
 	return nil
 }
@@ -508,6 +513,7 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	// Get Time Object of JST
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
+		slog.Error("タイムゾーンの取得に失敗", "error", err)
 		fmt.Println("タイムゾーンの取得に失敗:", err)
 		return
 	}
@@ -517,23 +523,27 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 
 	articles, err := getLatestFromRSS(searchword, now, nil, "")
 	if err != nil {
+		slog.Error("RSSフィードの取得に失敗", "error", err)
 		fmt.Println("RSSフィードの取得に失敗:", err)
 		return
 	}
 
 	summaries, err := getSummaries(articles, 10, now)
 	if err != nil {
+		slog.Error("記事サマリーの取得に失敗", "error", err)
 		fmt.Println("記事サマリーの取得に失敗:", err)
 		return
 	}
 
 	title, content, err := generatePostByArticles(summaries, now)
 	if err != nil {
+		slog.Error("ブログ記事の生成に失敗", "error", err)
 		fmt.Println("ブログ記事の生成に失敗:", err)
 		return
 	}
 	url, err := post(title, content)
 	if err != nil {
+		slog.Error("はてなブログへの投稿に失敗", "error", err)
 		fmt.Println("はてなブログへの投稿に失敗:", err)
 		return
 	}
@@ -541,6 +551,7 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
 	err = postMessageToSlack(message)
 	if err != nil {
+		slog.Error("failed to post message to slack", "error", err)
 		fmt.Println("failed to post message to slack", "error", err)
 		return
 	}
