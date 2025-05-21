@@ -195,10 +195,10 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	return articles, nil
 }
 
-func getSummaries(articles []Article, limit int, now time.Time) string {
+func getSummaries(articles []Article, limit int, now time.Time) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		return "", fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
 	}
 
 	today := now.Format("2006年01月02日")
@@ -248,7 +248,7 @@ func getSummaries(articles []Article, limit int, now time.Time) string {
 			},
 		})
 		if err != nil {
-			panic(err.Error())
+			return "", fmt.Errorf("記事サマリーの生成に失敗: %w", err)
 		}
 
 		resp := chatCompletion.Choices[0].Message.Content
@@ -261,13 +261,13 @@ func getSummaries(articles []Article, limit int, now time.Time) string {
 		summaries = append(summaries, fmt.Sprintf("%s: %s, %s", article.Title, article.Link, resp))
 	}
 
-	return strings.Join(summaries, "\n")
+	return strings.Join(summaries, "\n"), nil
 }
 
 func generatePostByArticles(articles string, now time.Time) (string, string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		return "", "", fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
 	}
 
 	// == first phase : 初版の作成 ==
@@ -289,7 +289,7 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 			Model: openai.ChatModelO1,
 		})
 		if err != nil {
-			panic(err.Error())
+			return "", "", fmt.Errorf("初版生成のOpenAI APIリクエストに失敗: %w", err)
 		}
 
 		resp := chatCompletion.Choices[0].Message.Content
@@ -300,7 +300,7 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		err = json.Unmarshal([]byte(resp), &contentJson2)
 		if err != nil {
 			fmt.Println(resp)
-			panic(err.Error())
+			return "", "", fmt.Errorf("初版レスポンスのJSONパースに失敗: %w", err)
 		}
 
 		fmt.Println("content2:", contentJson2.Content)
@@ -313,7 +313,7 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 			Model: openai.ChatModelO1Preview,
 		})
 		if err != nil {
-			panic(err.Error())
+			return "", "", fmt.Errorf("推敲版生成のOpenAI APIリクエストに失敗: %w", err)
 		}
 
 		resp = chatCompletion.Choices[0].Message.Content
@@ -324,7 +324,8 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		if err != nil {
 			fmt.Println(resp)
 			fmt.Println("Unmarshal error:", err)
-			return contentJson2.Title, addContentFormat(contentJson2.Content), nil
+			// JSONパースに失敗した場合は初版のコンテンツを使用
+			contentJson3 = contentJson2
 		}
 
 		fmt.Println("content3:", contentJson3.Content)
@@ -397,7 +398,7 @@ func addContentFormat(content string) string {
 func post(title, content string) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("設定ファイルの読み込みに失敗: %v", err))
+		return "", fmt.Errorf("設定ファイルの読み込みに失敗: %v", err)
 	}
 
 	// はてなブログ API のエンドポイント
@@ -503,7 +504,9 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	// Get Time Object of JST
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
-		panic(err)
+		fmt.Println("タイムゾーンの取得に失敗:", err)
+		http.Error(w, fmt.Sprintf("タイムゾーンの取得に失敗: %v", err), http.StatusInternalServerError)
+		return
 	}
 
 	now := time.Now().In(jst)
@@ -512,28 +515,41 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	articles, err := getLatestFromRSS(searchword, now, nil, "")
 	if err != nil {
 		fmt.Println("RSSフィードの取得に失敗:", err)
+		http.Error(w, fmt.Sprintf("RSSフィードの取得に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	summaries := getSummaries(articles, 10, now)
+	summaries, err := getSummaries(articles, 10, now)
+	if err != nil {
+		fmt.Println("記事サマリーの取得に失敗:", err)
+		http.Error(w, fmt.Sprintf("記事サマリーの取得に失敗: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
 	title, content, err := generatePostByArticles(summaries, now)
 	if err != nil {
 		fmt.Println("ブログ記事の生成に失敗:", err)
+		http.Error(w, fmt.Sprintf("ブログ記事の生成に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 	url, err := post(title, content)
 	if err != nil {
 		fmt.Println("はてなブログへの投稿に失敗:", err)
+		http.Error(w, fmt.Sprintf("はてなブログへの投稿に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
 	err = postMessageToSlack(message)
 	if err != nil {
-		fmt.Println("failed to post message to slack", "error", err)
+		fmt.Println("Slackへの投稿に失敗:", err)
+		http.Error(w, fmt.Sprintf("Slackへの投稿に失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	// 処理が成功した場合の応答
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "ブログ投稿に成功しました: %s", url)
 }
 
 func init() {
