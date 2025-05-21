@@ -255,7 +255,7 @@ func postX(url string) error {
 	// Marshal the Tweet struct to JSON
 	jsonData, err := json.Marshal(tweet)
 	if err != nil {
-		fmt.Println("JSONマーシャルエラー:", err)
+		slog.Error("Failed to marshal JSON", "error", err)
 		return err
 	}
 
@@ -267,10 +267,10 @@ func postX(url string) error {
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// リクエストを送信
+	// Send the request
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		fmt.Println("リクエスト送信エラー:", err)
+		slog.Error("Failed to send request", "error", err)
 		return err
 	}
 	defer func() {
@@ -279,14 +279,14 @@ func postX(url string) error {
 		}
 	}()
 
-	// レスポンスを読み取る
+	// Read the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("レスポンス読み取りエラー:", err)
+		slog.Error("Failed to read response", "error", err)
 		return err
 	}
 
-	// 結果を表示
+	// Display the result
 	slog.Info("X API response", "status", resp.Status, "body", string(body))
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
