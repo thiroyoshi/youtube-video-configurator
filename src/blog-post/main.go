@@ -472,8 +472,8 @@ func postMessageToSlack(message string) error {
 	return nil
 }
 
-// blogPost is an HTTP Cloud Function.
-func blogPost(w http.ResponseWriter, r *http.Request) {
+// BlogPost is an HTTP Cloud Function.
+func BlogPost(w http.ResponseWriter, r *http.Request) {
 	// Get Time Object of JST
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
@@ -507,5 +507,5 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	functions.HTTP("BlogPost", blogPost)
+	functions.HTTP("BlogPost", BlogPost)
 }
