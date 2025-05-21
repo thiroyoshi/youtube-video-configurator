@@ -336,7 +336,7 @@ func generatePostByArticles(articles string, now time.Time) (string, string) {
 
 		// Content is too short, retry
 		fmt.Println("Generated content is too short:", utf8.RuneCountInString(contentJson3.Content), "characters. Retrying...")
-		
+
 		// If this is the last retry and content is still too short, use the content anyway
 		if i == maxRetries-1 {
 			fmt.Println("Max retries reached. Using the last generated content despite being too short.")

@@ -179,7 +179,7 @@ func TestContentLengthCheck(t *testing.T) {
 func generateLongJapaneseText(length int) string {
 	// 適当な日本語テキストのパターン
 	pattern := "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん"
-	
+
 	// テキストを指定の長さになるまで追加
 	var result string
 	runeCount := 0
@@ -187,12 +187,12 @@ func generateLongJapaneseText(length int) string {
 		result += pattern
 		runeCount = utf8.RuneCountInString(result)
 	}
-	
+
 	// 結果を特定の長さにトリミング
 	runes := []rune(result)
 	if len(runes) > length {
 		runes = runes[:length]
 	}
-	
+
 	return string(runes)
 }
