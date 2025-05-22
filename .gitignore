@@ -9,6 +9,9 @@
 *.so
 *.dylib
 
+# Binary output files in cmd directories
+cmd/*/main
+
 # Test binary, built with `go test -c`
 *.test
 
