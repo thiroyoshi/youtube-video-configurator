@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -49,35 +50,34 @@ func getLatestPostsFromX(now time.Time) (string, error) {
 	// Getリクエストを作成
 	req, err := http.NewRequest("GET", endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		fmt.Println("リクエスト作成エラー:", err)
+		slog.Error("Failed to create request", "error", err)
 		return "", err
 	}
 
 	// リクエストを送信
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		fmt.Println("リクエスト送信エラー:", err)
+		slog.Error("Failed to send request", "error", err)
 		return "", err
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("resp.Body.Close error: %v\n", err)
+			slog.Error("Failed to close response body", "error", err)
 		}
 	}()
 
 	// レスポンスを読み取る
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("レスポンス読み取りエラー:", err)
+		slog.Error("Failed to read response", "error", err)
 		return "", err
 	}
 
 	// 結果を表示
-	fmt.Println("レスポンスステータス:", resp.Status)
-	fmt.Println("レスポンスボディ:", string(body))
+	slog.Info("X API response", "status", resp.Status, "body", string(body))
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Println("エラーレスポンス:", string(body))
+		slog.Error("X API error response", "body", string(body))
 		return "", fmt.Errorf("エラーレスポンス: %s", string(body))
 	}
 
@@ -85,11 +85,11 @@ func getLatestPostsFromX(now time.Time) (string, error) {
 	var tweet Tweet
 	err = json.Unmarshal(body, &tweet)
 	if err != nil {
-		fmt.Println("JSONアンマーシャルエラー:", err)
+		slog.Error("Failed to parse JSON response", "error", err)
 		return "", err
 	}
 
-	fmt.Println("tweet:", tweet)
+	slog.Info("Tweet data retrieved", "tweet", tweet)
 
 	return "", nil
 }

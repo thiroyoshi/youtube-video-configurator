@@ -1,6 +1,6 @@
 module thiroyoshi.com/convert-starter
 
-go 1.23.9
+go 1.24
 
 require github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 
