@@ -1,6 +1,6 @@
 module main
 
-go 1.23.9
+go 1.24
 
 replace thiroyoshi.com/blog-post => ../../src/blog-post
 
