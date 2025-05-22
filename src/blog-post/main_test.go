@@ -142,8 +142,12 @@ func TestLoadFromEnv(t *testing.T) {
 
 	// テスト後に環境変数を元に戻す
 	defer func() {
-		os.Setenv("OPENAI_API_KEY", oldOpenAI)
-		os.Setenv("HATENA_API_KEY", oldHatenaApiKey)
+		if err := os.Setenv("OPENAI_API_KEY", oldOpenAI); err != nil {
+			t.Errorf("Failed to restore OPENAI_API_KEY: %v", err)
+		}
+		if err := os.Setenv("HATENA_API_KEY", oldHatenaApiKey); err != nil {
+			t.Errorf("Failed to restore HATENA_API_KEY: %v", err)
+		}
 	}()
 
 	// テストケース
@@ -185,12 +189,18 @@ func TestLoadFromEnv(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 環境変数をクリア
-			os.Unsetenv("OPENAI_API_KEY")
-			os.Unsetenv("HATENA_API_KEY")
+			if err := os.Unsetenv("OPENAI_API_KEY"); err != nil {
+				t.Errorf("Failed to unset OPENAI_API_KEY: %v", err)
+			}
+			if err := os.Unsetenv("HATENA_API_KEY"); err != nil {
+				t.Errorf("Failed to unset HATENA_API_KEY: %v", err)
+			}
 
 			// テストケースの環境変数を設定
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				if err := os.Setenv(key, value); err != nil {
+					t.Errorf("Failed to set environment variable %s: %v", key, err)
+				}
 			}
 
 			// テスト対象の関数を実行
