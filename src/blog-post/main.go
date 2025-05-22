@@ -601,7 +601,6 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	err := RunBlogPost()
 	if err != nil {
 		slog.Error("Error executing blog post", "error", err)
-		http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -611,9 +610,9 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// BlogPost is the exported version for direct execution
-func BlogPost() error {
-	return RunBlogPost()
+// BlogPost is the exported version of blogPost for external use
+func BlogPost(w http.ResponseWriter, r *http.Request) {
+	blogPost(w, r)
 }
 
 func init() {
