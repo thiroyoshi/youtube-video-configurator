@@ -555,7 +555,11 @@ func BlogPost(w http.ResponseWriter, r *http.Request) {
 	err := RunBlogPost()
 	if err != nil {
 		slog.Error("Error executing blog post", "error", err)
+		http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusInternalServerError)
+		return
 	}
+	
+	fmt.Fprint(w, "Blog post successfully executed")
 }
 
 func init() {
