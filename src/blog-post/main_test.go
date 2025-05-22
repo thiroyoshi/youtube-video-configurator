@@ -229,6 +229,7 @@ func TestLoadFromEnv(t *testing.T) {
 		})
 	}
 }
+
 // テキストの長さチェック関数のテスト
 func TestContentLengthCheck(t *testing.T) {
 	testCases := []struct {

@@ -605,7 +605,10 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprint(w, "Blog post successfully executed")
+	_, err = fmt.Fprint(w, "Blog post successfully executed")
+	if err != nil {
+		slog.Error("Error writing response", "error", err)
+	}
 }
 
 // BlogPost is the exported version of blogPost for external use
