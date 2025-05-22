@@ -17,6 +17,7 @@ resource "google_cloudfunctions2_function" "blog_post" {
       GOOGLE_CLOUD_PROJECT = var.project_id
       OPENAI_API_KEY       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.openai_api_key.secret_id}/versions/latest"
       HATENA_API_KEY       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.hatena_api_key.secret_id}/versions/latest"
+      SLACK_WEBHOOK_URL    = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.slack_webhook_url.secret_id}/versions/latest"
     }
     min_instance_count             = 0
     max_instance_count             = 1

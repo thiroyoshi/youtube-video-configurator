@@ -509,7 +509,12 @@ func post(title, content string) (string, error) {
 }
 
 func postMessageToSlack(message string) error {
-	slackURL := "https://hooks.slack.com/services/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"
+	slackURL := os.Getenv("SLACK_WEBHOOK_URL")
+	if slackURL == "" {
+		slog.Warn("slack webhook URL not configured, skipping slack notification")
+		return nil
+	}
+
 	slackPayload := map[string]string{"text": message}
 	slackPayloadBytes, err := json.Marshal(slackPayload)
 	if err != nil {
