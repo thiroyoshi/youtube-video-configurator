@@ -77,19 +77,57 @@ type Config struct {
 	HatenaApiKey string `json:"hatena_api_key"`
 }
 
+func loadFromEnv() *Config {
+	// GCPのシークレットマネージャーからの環境変数値
+	// 環境変数の値が "sm://" で始まる場合、Secret Managerからの自動取得済み値として扱われる
+	// HatenaIdとHatenaBlogIdは固定値として定義
+	config := &Config{
+		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
+		HatenaId:     "hatena36",
+		HatenaBlogId: "gaba3h.hatenadiary.jp",
+		HatenaApiKey: os.Getenv("HATENA_API_KEY"),
+	}
+
+	// 必要な設定値が指定されていることを確認
+	if config.OpenAIAPIKey != "" && config.HatenaApiKey != "" {
+		return config
+	}
+	return nil
+}
+
 func loadConfig() (*Config, error) {
+	// 1. 環境変数から設定を読み込む
+	config := loadFromEnv()
+	if config != nil {
+		return config, nil
+	}
+
+	// 2. 環境変数による設定が不完全な場合、設定ファイルから読み込む
 	configFile := "config.json"
 	data, err := os.ReadFile(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %v", err)
+		// 設定ファイルの読み込みに失敗した場合、警告ログを出力するが中断はしない
+		slog.Warn("Failed to read config file", "error", err)
+
+		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
+		if config == nil {
+			return nil, fmt.Errorf("failed to load configuration from environment variables or config file: %v", err)
+		}
+		return config, nil
 	}
 
-	var config Config
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %v", err)
+	var fileConfig Config
+	if err := json.Unmarshal(data, &fileConfig); err != nil {
+		slog.Error("Failed to parse JSON", "error", err)
+
+		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
+		if config == nil {
+			return nil, fmt.Errorf("failed to parse JSON: %v", err)
+		}
+		return config, nil
 	}
 
-	return &config, nil
+	return &fileConfig, nil
 }
 
 // AtomPub API に送る XML の構造体
@@ -201,6 +239,7 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 func getSummaries(articles []Article, limit int, now time.Time) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
+		slog.Error("Failed to load config", "error", err)
 		return "", fmt.Errorf("failed to load config: %v", err)
 	}
 
@@ -270,6 +309,7 @@ func getSummaries(articles []Article, limit int, now time.Time) (string, error) 
 func generatePostByArticles(articles string, now time.Time) (string, string, error) {
 	config, err := loadConfig()
 	if err != nil {
+		slog.Error("Failed to load config", "error", err)
 		return "", "", fmt.Errorf("failed to load config: %v", err)
 	}
 
@@ -404,6 +444,7 @@ func addContentFormat(content string) string {
 func post(title, content string) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
+		slog.Error("Failed to load config", "error", err)
 		return "", fmt.Errorf("failed to load config: %v", err)
 	}
 
@@ -468,7 +509,12 @@ func post(title, content string) (string, error) {
 }
 
 func postMessageToSlack(message string) error {
-	slackURL := "https://hooks.slack.com/services/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"
+	slackURL := os.Getenv("SLACK_WEBHOOK_URL")
+	if slackURL == "" {
+		slog.Warn("slack webhook URL not configured, skipping slack notification")
+		return nil
+	}
+
 	slackPayload := map[string]string{"text": message}
 	slackPayloadBytes, err := json.Marshal(slackPayload)
 	if err != nil {
