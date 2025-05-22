@@ -210,13 +210,13 @@ func addVideoToPlaylist(videoID, playListId, accessToken string) ([]byte, error)
 			slog.Error("failed to close response body", "error", cerr)
 		}
 	}()
-	fmt.Println("add video to playlist response Status:", resp.Status)
+	slog.Info("Add video to playlist response", "status", resp.Status)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err
 	}
-	fmt.Println(string(body))
+	slog.Info("Playlist response", "body", string(body))
 
 	return body, nil
 }
@@ -255,7 +255,7 @@ func postX(url string) error {
 	// Marshal the Tweet struct to JSON
 	jsonData, err := json.Marshal(tweet)
 	if err != nil {
-		fmt.Println("JSONマーシャルエラー:", err)
+		slog.Error("Failed to marshal JSON", "error", err)
 		return err
 	}
 
@@ -267,10 +267,10 @@ func postX(url string) error {
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// リクエストを送信
+	// Send the request
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		fmt.Println("リクエスト送信エラー:", err)
+		slog.Error("Failed to send request", "error", err)
 		return err
 	}
 	defer func() {
@@ -279,16 +279,15 @@ func postX(url string) error {
 		}
 	}()
 
-	// レスポンスを読み取る
+	// Read the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("レスポンス読み取りエラー:", err)
+		slog.Error("Failed to read response", "error", err)
 		return err
 	}
 
-	// 結果を表示
-	fmt.Println("レスポンスステータス:", resp.Status)
-	fmt.Println("レスポンスボディ:", string(body))
+	// Display the result
+	slog.Info("X API response", "status", resp.Status, "body", string(body))
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("twitter API returned unexpected status code: %d", resp.StatusCode)
@@ -376,7 +375,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	fmt.Println("body:", string(body))
+	slog.Info("Request body", "body", string(body))
 
 	// Parse RequestData
 	jsonBytes := ([]byte)(body)
@@ -389,7 +388,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	fmt.Println("data:", data)
+	slog.Info("Function request data", "data", data)
 
 	// Get videoId
 	dataStrings := strings.Split(data.URL, "?v=")
@@ -449,6 +448,7 @@ func videoConverter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// // Post to Slack incoming webhook
+	// // Commented out since function is not available
 	// message := fmt.Sprintf("GABAのフォートナイトのプレイ動画をYouTubeにアップロードしました\n%s\n%s", title, data.URL)
 	// if err := postMessageToSlack(message); err != nil {
 	// 	slog.Error("failed to post message to Slack", "error", err)

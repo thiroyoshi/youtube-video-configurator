@@ -7,17 +7,68 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	openai "github.com/openai/openai-go"
 	option "github.com/openai/openai-go/option"
 	param "github.com/openai/openai-go/packages/param"
 )
+
+// ブログ記事初版生成用のプロンプト
+var prompt2 = `
+	あなたはFortnite専門のプロブロガーです。
+	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
+
+	後述する情報を使用して、以下の条件に合うようにFortniteに関するブログ記事とそのタイトルを作成してください。
+
+	条件
+	・1記事あたりトピックの数は3トピックまでとし、1トピックあたり200字以内で書く
+	・各トピックは、見出し、日付、内容、情報源リンク（参照先のタイトルがリンクとなっている形式）で構成する
+	・トピックの見出しは、読みやすくわかりやすい人目を引きやすいものとする
+	・トピックの内容は、適度な改行やエクスクラメーションマークを挿入して、テンポよく読みやすくまとめる
+	・記事のタイトルは、SEOのために記事の内容から適度にキーワードを取り入れる
+	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
+	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
+	{
+		"title": "記事のタイトル",
+		"content": "記事の内容"
+	}
+
+	以下が元となる情報の一覧である。
+
+	%s
+	`
+
+// ブログ記事推敲用のプロンプト
+var prompt3 = `
+	あなたはFortnite専門のプロブロガーです。
+	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
+
+	後述するブログ記事の内容をもとにして、以下の条件に合うようにブログ記事を修正し、新たにタイトルを作成してください。
+
+	[条件]
+	・記事の内容について、現在をブログ記事として60点と考え、それを100点になるように修正すること
+	・記事の末尾には、記事全体を総括したまとめを入れる
+	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
+	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
+	{
+		"title": "記事のタイトル",
+		"content": "記事の内容"
+	}
+
+	以下が元となるブログ記事である。
+
+	%s
+
+	万が一、要求通りに修正できない場合には、json形式で出力するのみとすること
+	`
 
 type Config struct {
 	OpenAIAPIKey string `json:"openai_api_key"`
@@ -56,22 +107,22 @@ func loadConfig() (*Config, error) {
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		// 設定ファイルの読み込みに失敗した場合、エラーを返すが中断はしない
-		fmt.Printf("設定ファイルの読み込みに失敗: %v\n", err)
+		slog.Error("Failed to read config file", "error", err)
 
 		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
 		if config == nil {
-			return nil, fmt.Errorf("環境変数および設定ファイルから設定を取得できません")
+			return nil, fmt.Errorf("failed to load configuration from environment variables or config file: %v", err)
 		}
 		return config, nil
 	}
 
 	var fileConfig Config
 	if err := json.Unmarshal(data, &fileConfig); err != nil {
-		fmt.Printf("JSONのパースに失敗: %v\n", err)
+		slog.Error("Failed to parse JSON", "error", err)
 
 		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
 		if config == nil {
-			return nil, fmt.Errorf("環境変数および設定ファイルから設定を取得できません")
+			return nil, fmt.Errorf("failed to parse JSON: %v", err)
 		}
 		return config, nil
 	}
@@ -137,23 +188,25 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	lastweek := now.AddDate(0, 0, -7).Format("2006-01-02")
 
 	url := fmt.Sprintf("%s?q=%s+after:%s+before:%s&hl=ja&gl=JP&ceid=JP:ja", baseURL, searchword, lastweek, today)
-	fmt.Println("url:", url)
+	slog.Info("RSS feed URL", "url", url)
 
 	// RSSフィードを取得
 	resp, err := httpClient.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("RSSフィードの取得に失敗: %v", err)
+		slog.Error("Failed to retrieve RSS feed", "error", err)
+		return nil, fmt.Errorf("failed to retrieve RSS feed: %v", err)
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			err = fmt.Errorf("レスポンスのクローズに失敗: %v", cerr)
+			err = fmt.Errorf("failed to close response: %v", cerr)
 		}
 	}()
 
 	// XMLをパース
 	var rss RSS
 	if err := xml.NewDecoder(resp.Body).Decode(&rss); err != nil {
-		return nil, fmt.Errorf("XMLのパースに失敗: %v", err)
+		slog.Error("Failed to parse XML", "error", err)
+		return nil, fmt.Errorf("failed to parse XML: %v", err)
 	}
 
 	// 記事情報を抽出
@@ -171,23 +224,23 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 		})
 	}
 
-	fmt.Println("取得した記事数:", len(articles))
+	slog.Info("Articles retrieved from RSS feed", "count", len(articles))
 
 	// articlesを日付が最新になるようソート
 	sort.Slice(articles, func(i, j int) bool {
 		return articles[i].PubDate.After(articles[j].PubDate)
 	})
 
-	fmt.Println("articles:", articles)
+	slog.Info("Articles sorted by date", "articles", articles)
 
 	return articles, nil
 }
 
-func getSummaries(articles []Article, limit int, now time.Time) string {
+func getSummaries(articles []Article, limit int, now time.Time) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		fmt.Printf("設定の読み込みに失敗: %v\n", err)
-		return ""
+		slog.Error("Failed to load config", "error", err)
+		return "", fmt.Errorf("failed to load config: %v", err)
 	}
 
 	today := now.Format("2006年01月02日")
@@ -237,133 +290,113 @@ func getSummaries(articles []Article, limit int, now time.Time) string {
 			},
 		})
 		if err != nil {
-			panic(err.Error())
+			return "", fmt.Errorf("failed to generate article summary: %w", err)
 		}
 
 		resp := chatCompletion.Choices[0].Message.Content
-		fmt.Println("=====================")
-		fmt.Println(article.Title)
-		fmt.Println(article.Link)
-		fmt.Println(resp)
-		fmt.Println("=====================")
+		slog.Info("Article summary generated",
+			"title", article.Title,
+			"link", article.Link,
+			"response", resp,
+			"response_length", len(resp))
 
 		summaries = append(summaries, fmt.Sprintf("%s: %s, %s", article.Title, article.Link, resp))
 	}
 
-	return strings.Join(summaries, "\n")
+	return strings.Join(summaries, "\n"), nil
 }
 
-func generatePostByArticles(articles string, now time.Time) (string, string) {
+func generatePostByArticles(articles string, now time.Time) (string, string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		fmt.Printf("設定の読み込みに失敗: %v\n", err)
-		return "", ""
+		slog.Error("Failed to load config", "error", err)
+		return "", "", fmt.Errorf("failed to load config: %v", err)
 	}
 
-	// == first phase : 初版の作成 ==
-	prompt2 := `
-	あなたはFortnite専門のプロブロガーです。
-	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
-
-	後述する情報を使用して、以下の条件に合うようにFortniteに関するブログ記事とそのタイトルを作成してください。
-
-	条件
-	・1記事あたりトピックの数は3トピックまでとし、1トピックあたり200字以内で書く
-	・各トピックは、見出し、日付、内容、情報源リンク（参照先のタイトルがリンクとなっている形式）で構成する
-	・トピックの見出しは、読みやすくわかりやすい人目を引きやすいものとする
-	・トピックの内容は、適度な改行やエクスクラメーションマークを挿入して、テンポよく読みやすくまとめる
-	・記事のタイトルは、SEOのために記事の内容から適度にキーワードを取り入れる
-	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
-	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
-	{
-		"title": "記事のタイトル",
-		"content": "記事の内容"
-	}
-
-	以下が元となる情報の一覧である。
-
-	%s
-	`
-
+	// == first phase : initial creation ==
 	client := openai.NewClient(
 		option.WithAPIKey(config.OpenAIAPIKey),
 	)
 
-	chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage(fmt.Sprintf(prompt2, articles)),
-		},
-		Model: openai.ChatModelO1,
-	})
-	if err != nil {
-		panic(err.Error())
-	}
-
-	resp := chatCompletion.Choices[0].Message.Content
-	resp = strings.TrimPrefix(resp, "```json\n")
-	resp = strings.ReplaceAll(resp, "`", "")
-
-	var contentJson2 ContentJson
-	err = json.Unmarshal([]byte(resp), &contentJson2)
-	if err != nil {
-		fmt.Println(resp)
-		panic(err.Error())
-	}
-
-	fmt.Println("content2:", contentJson2.Content)
-
-	// == second phase : 初版の推敲 ==
-	prompt3 := `
-	あなたはFortnite専門のプロブロガーです。
-	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
-
-	後述するブログ記事の内容をもとにして、以下の条件に合うようにブログ記事を修正し、新たにタイトルを作成してください。
-
-	[条件]
-	・記事の内容について、現在をブログ記事として60点と考え、それを100点になるように修正すること
-	・記事の末尾には、記事全体を総括したまとめを入れる
-	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
-	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
-	{
-		"title": "記事のタイトル",
-		"content": "記事の内容"
-	}
-
-	以下が元となるブログ記事である。
-
-	%s
-
-	万が一、要求通りに修正できない場合には、json形式で出力するのみとすること
-	`
-
-	chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage(fmt.Sprintf(prompt3, contentJson2.Content)),
-		},
-		Model: openai.ChatModelO1Preview,
-	})
-	if err != nil {
-		panic(err.Error())
-	}
-
-	resp = chatCompletion.Choices[0].Message.Content
-	resp = strings.TrimPrefix(resp, "```json\n")
-	resp = strings.ReplaceAll(resp, "`", "")
-
 	var contentJson3 ContentJson
-	err = json.Unmarshal([]byte(resp), &contentJson3)
-	if err != nil {
-		fmt.Println(resp)
-		fmt.Println("Unmarshal error:", err)
-		return contentJson2.Title, addContentFormat(contentJson2.Content)
-	}
+	var title string
+	maxRetries := 5
+	minContentLength := 1000
 
-	fmt.Println("content3:", contentJson3.Content)
+	// Generate blog post with retry logic for short content
+	for i := 0; i < maxRetries; i++ {
+		chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(fmt.Sprintf(prompt2, articles)),
+			},
+			Model: openai.ChatModelO1,
+		})
+		if err != nil {
+			return "", "", fmt.Errorf("failed to request OpenAI API for initial version: %w", err)
+		}
+
+		resp := chatCompletion.Choices[0].Message.Content
+		resp = strings.TrimPrefix(resp, "```json\n")
+		resp = strings.ReplaceAll(resp, "`", "")
+
+		var contentJson2 ContentJson
+		err = json.Unmarshal([]byte(resp), &contentJson2)
+		if err != nil {
+			slog.Error("Failed to parse initial response JSON", "response", resp, "error", err)
+			return "", "", fmt.Errorf("failed to parse initial response JSON: %w", err)
+		}
+
+		slog.Info("Initial content generated", "length", len(contentJson2.Content))
+
+		// == second phase : 初版の推敲 ==
+		chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(fmt.Sprintf(prompt3, contentJson2.Content)),
+			},
+			Model: openai.ChatModelO1Preview,
+		})
+		if err != nil {
+			return "", "", fmt.Errorf("failed to request OpenAI API for refined version: %w", err)
+		}
+
+		resp = chatCompletion.Choices[0].Message.Content
+		resp = strings.TrimPrefix(resp, "```json\n")
+		resp = strings.ReplaceAll(resp, "`", "")
+
+		err = json.Unmarshal([]byte(resp), &contentJson3)
+		if err != nil {
+			slog.Error("Failed to parse refined response JSON", "response", resp, "error", err)
+			// Use the initial content if JSON parsing fails
+			contentJson3 = contentJson2
+		}
+
+		slog.Info("Refined content generated", "length", len(contentJson3.Content))
+
+		// Check if the content is long enough
+		if utf8.RuneCountInString(contentJson3.Content) >= minContentLength {
+			// Content is long enough, break the retry loop
+			slog.Info("Generated content meets length requirement", "length", utf8.RuneCountInString(contentJson3.Content))
+			break
+		}
+
+		// Content is too short, retry
+		slog.Info("Generated content is too short, retrying",
+			"length", utf8.RuneCountInString(contentJson3.Content),
+			"required", minContentLength,
+			"attempt", i+1,
+			"maxRetries", maxRetries)
+
+		// If this is the last retry and content is still too short, return an error
+		if i == maxRetries-1 {
+			contentLength := utf8.RuneCountInString(contentJson3.Content)
+			return "", "", fmt.Errorf("generated content is too short. Final length: %d characters, required: %d characters or more", contentLength, minContentLength)
+		}
+	}
 
 	pubDate := now.Format("2006/01/02")
-	title := fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
+	title = fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
 
-	return title, addContentFormat(contentJson3.Content)
+	return title, addContentFormat(contentJson3.Content), nil
 }
 
 func addContentFormat(content string) string {
@@ -411,11 +444,11 @@ func addContentFormat(content string) string {
 func post(title, content string) (string, error) {
 	config, err := loadConfig()
 	if err != nil {
-		fmt.Printf("設定の読み込みに失敗: %v\n", err)
-		return "", err
+		slog.Error("Failed to load config", "error", err)
+		return "", fmt.Errorf("failed to load config: %v", err)
 	}
 
-	// はてなブログ API のエンドポイント
+	// Hatena Blog API endpoint
 	endpoint := fmt.Sprintf("https://blog.hatena.ne.jp/%s/%s/atom/entry", config.HatenaId, config.HatenaBlogId)
 
 	// 投稿する記事のデータ
@@ -431,18 +464,17 @@ func post(title, content string) (string, error) {
 	// XML に変換
 	xmlData, err := xml.MarshalIndent(entry, "", "  ")
 	if err != nil {
-		fmt.Println("XML エンコードエラー:", err)
+		slog.Error("XML encoding failed", "error", err)
 		return "", err
 	}
 
 	xmlWithHeader := append([]byte(xml.Header), xmlData...)
-
-	fmt.Println(string(xmlWithHeader))
+	slog.Info("XML data prepared for posting", "length", len(xmlWithHeader))
 
 	// HTTP リクエスト作成
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(xmlWithHeader))
 	if err != nil {
-		fmt.Println("リクエスト作成エラー:", err)
+		slog.Error("Failed to create request", "error", err)
 		return "", err
 	}
 
@@ -454,24 +486,24 @@ func post(title, content string) (string, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("リクエスト送信エラー:", err)
+		slog.Error("Failed to send request", "error", err)
 		return "", err
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			fmt.Printf("レスポンスのクローズに失敗: %v\n", cerr)
+			slog.Error("Failed to close response body", "error", cerr)
 		}
 	}()
 
-	// 結果を表示
-	fmt.Println("ステータスコード:", resp.Status)
+	// Display the result
+	slog.Info("Response status code", "status", resp.Status)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		fmt.Printf("はてなブログ API エラー: %d\n", resp.StatusCode)
-		return "", fmt.Errorf("はてなブログ API エラー: %d", resp.StatusCode)
+		slog.Error("Hatena Blog API error", "status_code", resp.StatusCode)
+		return "", fmt.Errorf("hatena blog API error: %d", resp.StatusCode)
 	}
 
 	entryURL := resp.Header.Get("Location")
-	fmt.Println("記事URL:", entryURL)
+	slog.Info("Article published", "url", entryURL)
 
 	return entryURL, nil
 }
@@ -481,13 +513,13 @@ func postMessageToSlack(message string) error {
 	slackPayload := map[string]string{"text": message}
 	slackPayloadBytes, err := json.Marshal(slackPayload)
 	if err != nil {
-		fmt.Println("failed to marshal slack payload", "error", err)
+		slog.Error("failed to marshal slack payload", "error", err)
 		return err
 	}
 
 	req, err := http.NewRequest("POST", slackURL, bytes.NewBuffer(slackPayloadBytes))
 	if err != nil {
-		fmt.Println("failed to create slack request", "error", err)
+		slog.Error("failed to create slack request", "error", err)
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -495,21 +527,21 @@ func postMessageToSlack(message string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("failed to send slack request", "error", err)
+		slog.Error("failed to send slack request", "error", err)
 		return err
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			fmt.Println("failed to close slack response body", "error", cerr)
+			slog.Error("failed to close slack response body", "error", cerr)
 		}
 	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		fmt.Printf("slack returned non-2xx status: %d\n", resp.StatusCode)
+		slog.Error("slack returned non-2xx status", "status", resp.StatusCode)
 		return fmt.Errorf("slack returned non-2xx status: %d", resp.StatusCode)
 	}
 
-	fmt.Println("successfully posted message to slack")
+	slog.Info("successfully posted message to slack")
 	return nil
 }
 
@@ -518,7 +550,8 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	// Get Time Object of JST
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
-		panic(err)
+		slog.Error("Failed to get timezone", "error", err)
+		return
 	}
 
 	now := time.Now().In(jst)
@@ -526,25 +559,33 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 
 	articles, err := getLatestFromRSS(searchword, now, nil, "")
 	if err != nil {
-		fmt.Println("RSSフィードの取得に失敗:", err)
+		slog.Error("Failed to get RSS feed", "error", err)
 		return
 	}
 
-	summaries := getSummaries(articles, 10, now)
-	title, content := generatePostByArticles(summaries, now)
+	summaries, err := getSummaries(articles, 10, now)
+	if err != nil {
+		slog.Error("Failed to get article summaries", "error", err)
+		return
+	}
+
+	title, content, err := generatePostByArticles(summaries, now)
+	if err != nil {
+		slog.Error("Failed to generate blog post", "error", err)
+		return
+	}
 	url, err := post(title, content)
 	if err != nil {
-		fmt.Println("はてなブログへの投稿に失敗:", err)
+		slog.Error("Failed to post to Hatena Blog", "error", err)
 		return
 	}
 
 	message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
 	err = postMessageToSlack(message)
 	if err != nil {
-		fmt.Println("failed to post message to slack", "error", err)
+		slog.Error("Failed to post message to Slack", "error", err)
 		return
 	}
-
 }
 
 func init() {
