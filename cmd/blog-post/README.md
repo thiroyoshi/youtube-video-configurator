@@ -4,7 +4,7 @@ This directory contains the code for running the blog-post Cloud Function locall
 
 ## Prerequisites
 
-- Go 1.23.9 (for Cloud Functions compatibility)
+- Go 1.24 (for Cloud Functions compatibility)
 - A properly configured `config.json` file in the working directory (same format as required by the Cloud Function)
 
 ## Running Locally
