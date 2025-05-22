@@ -15,6 +15,9 @@ resource "google_cloudfunctions2_function" "blog_post" {
     service_account_email = google_service_account.function_sa.email
     environment_variables = {
       GOOGLE_CLOUD_PROJECT = var.project_id
+      OPENAI_API_KEY       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.openai_api_key.secret_id}/versions/latest"
+      HATENA_API_KEY       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.hatena_api_key.secret_id}/versions/latest"
+      SLACK_WEBHOOK_URL    = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.slack_webhook_url.secret_id}/versions/latest"
     }
     min_instance_count             = 0
     max_instance_count             = 1
@@ -22,6 +25,7 @@ resource "google_cloudfunctions2_function" "blog_post" {
     timeout_seconds                = 60
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
+    secret_environment_variables   = []
   }
   event_trigger {
     trigger_region = var.region
@@ -51,6 +55,13 @@ resource "google_cloud_run_service_iam_member" "run_invoker" {
   service  = google_cloudfunctions2_function.blog_post.name # Cloud Runサービス名はCloud Functions名と同じ
   role     = "roles/run.invoker"
   member   = "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+# IAM permissions for function service account
+resource "google_project_iam_member" "function_sa_secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.function_sa.email}"
 }
 
 # Cloud RunサービスにallUsersのInvoker権限を一時的に付与し、認証エラーの切り分けを行う
