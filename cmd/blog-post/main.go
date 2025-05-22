@@ -11,8 +11,8 @@ import (
 func main() {
 	fmt.Println("Executing blog post function...")
 
-	// Call the function directly without starting a server
-	err := blogpost.RunBlogPost()
+	// Call the exported function directly
+	err := blogpost.BlogPost()
 	if err != nil {
 		fmt.Printf("Error executing blog post: %v\n", err)
 		os.Exit(1)

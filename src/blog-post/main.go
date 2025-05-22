@@ -611,11 +611,12 @@ func blogPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// BlogPost is the exported version of blogPost for external use
-func BlogPost(w http.ResponseWriter, r *http.Request) {
-	blogPost(w, r)
+// BlogPost is the exported version for direct execution
+func BlogPost() error {
+	return RunBlogPost()
 }
 
 func init() {
+	// Register HTTP handler for Cloud Functions
 	functions.HTTP("BlogPost", blogPost)
 }
