@@ -106,8 +106,8 @@ func loadConfig() (*Config, error) {
 	configFile := "config.json"
 	data, err := os.ReadFile(configFile)
 	if err != nil {
-		// 設定ファイルの読み込みに失敗した場合、エラーを返すが中断はしない
-		slog.Error("Failed to read config file", "error", err)
+		// 設定ファイルの読み込みに失敗した場合、警告ログを出力するが中断はしない
+		slog.Warn("Failed to read config file", "error", err)
 
 		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
 		if config == nil {
