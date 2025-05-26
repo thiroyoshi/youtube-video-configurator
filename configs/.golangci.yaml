@@ -7,10 +7,6 @@ run:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    - linters:
-        - gosec
-      text: "G101: Potential hardcoded credentials"
 
 linters:
   enable:
