@@ -11,6 +11,15 @@ import (
 	"github.com/dghubble/oauth1"
 )
 
+const (
+	// Twitter/X API credentials
+	apiKey             = "vR8oo1pAQFgeYKlfxIPSrgRq6"
+	apiSecretKey       = "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
+	accessToken        = "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
+	accessTokenSecret  = "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
+	twitterAPIEndpoint = "https://api.twitter.com/2/tweets"
+)
+
 // Tweet はXのツイートデータを表す構造体です。ツイートの本文とその他のメタデータを含みます。
 type Tweet struct {
 	Text string `json:"text"`
@@ -18,10 +27,6 @@ type Tweet struct {
 
 func postX(message string) error {
 	// APIキーとアクセストークンを設定
-	apiKey := "vR8oo1pAQFgeYKlfxIPSrgRq6"
-	apiSecretKey := "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
-	accessToken := "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
-	accessTokenSecret := "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
 
 	// OAuth1 認証設定
 	config := oauth1.NewConfig(apiKey, apiSecretKey)
@@ -29,7 +34,7 @@ func postX(message string) error {
 	httpClient := config.Client(oauth1.NoContext, token)
 
 	// APIエンドポイントURL
-	endpoint := "https://api.twitter.com/2/tweets"
+	endpoint := twitterAPIEndpoint
 
 	tweet := Tweet{Text: message}
 

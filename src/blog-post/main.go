@@ -21,6 +21,11 @@ import (
 	param "github.com/openai/openai-go/packages/param"
 )
 
+const (
+	hatenaId     = "GABA_FORTNITE"
+	hatenaBlogId = "gaba-fortnite.hatenablog.com"
+)
+
 // Prompt for generating initial blog post draft
 var prompt2 = `
 	あなたはFortnite専門のプロブロガーです。
@@ -83,8 +88,8 @@ func loadFromEnv() *Config {
 	// HatenaId and HatenaBlogId are defined as fixed values
 	config := &Config{
 		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
-		HatenaId:     "GABA_FORTNITE",
-		HatenaBlogId: "gaba-fortnite.hatenablog.com",
+		HatenaId:     hatenaId,
+		HatenaBlogId: hatenaBlogId,
 		HatenaApiKey: os.Getenv("HATENA_API_KEY"),
 	}
 
