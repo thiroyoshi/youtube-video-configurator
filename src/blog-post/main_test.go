@@ -156,7 +156,8 @@ func TestLoadFromEnv(t *testing.T) {
 		envVars  map[string]string
 		wantNil  bool
 		wantVals map[string]string
-	}{		{
+	}{
+		{
 			name: "すべての必要な環境変数が設定されている場合",
 			envVars: map[string]string{
 				"OPENAI_API_KEY": "test_openai_key",
