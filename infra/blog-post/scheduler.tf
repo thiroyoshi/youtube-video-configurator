@@ -14,6 +14,11 @@ resource "google_cloud_scheduler_job" "blog_post_schedule" {
     topic_name = google_pubsub_topic.blog_post_schedule_topic.id
     data       = base64encode("{\"message\":\"trigger\"}")
   }
+
+  depends_on = [
+    google_service_account.scheduler_sa,
+    google_project_iam_member.scheduler_pubsub_publisher
+  ]
 }
 
 resource "google_service_account" "scheduler_sa" {

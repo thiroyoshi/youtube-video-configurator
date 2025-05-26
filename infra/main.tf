@@ -3,6 +3,12 @@ resource "google_project_service" "serviceusage" {
   service = "serviceusage.googleapis.com"
 }
 
+resource "google_project_service" "secretmanager" {
+  project    = var.project_id
+  service    = "secretmanager.googleapis.com"
+  depends_on = [google_project_service.serviceusage]
+}
+
 resource "google_project_service" "cloud_scheduler" {
   project    = var.project_id
   service    = "cloudscheduler.googleapis.com"
@@ -26,10 +32,11 @@ locals {
     "roles/cloudfunctions.admin",
     "roles/cloudscheduler.admin",
     "roles/resourcemanager.projectIamAdmin",
-    "roles/storage.admin",           // GCS操作用
-    "roles/iam.serviceAccountUser",  // サービスアカウント指定デプロイ用
-    "roles/logging.logWriter",       // Cloud Logging書き込み権限
-    "roles/cloudbuild.builds.editor" // Cloud Build Trigger管理用
+    "roles/storage.admin",              // GCS操作用
+    "roles/iam.serviceAccountUser",     // サービスアカウント指定デプロイ用
+    "roles/logging.logWriter",          // Cloud Logging書き込み権限
+    "roles/cloudbuild.builds.editor",   // Cloud Build Trigger管理用
+    "roles/secretmanager.admin"         // Secret Manager管理権限
   ]
 }
 
@@ -95,5 +102,5 @@ module "blog-post" {
   region         = var.region
   source_bucket  = var.source_bucket
   short_sha      = var.short_sha
-  depends_on     = [time_sleep.wait_for_scheduler_api, google_project_service.pubsub]
+  depends_on     = [time_sleep.wait_for_scheduler_api, google_project_service.pubsub, google_project_service.secretmanager]
 }
