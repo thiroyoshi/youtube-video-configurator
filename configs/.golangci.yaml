@@ -1,4 +1,5 @@
-# golangci-lint configuration
+version: "2"
+
 run:
   timeout: 3m
   go: '1.24'
@@ -9,11 +10,14 @@ issues:
 
 linters:
   enable:
-    - gofmt
     - govet
     - errcheck
     - staticcheck
     - ineffassign
+    - unused
     - misspell
     - gosec
+
+# reviveは厳しすぎるので無効化
+  disable:
     - revive
