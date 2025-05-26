@@ -21,7 +21,7 @@ import (
 	param "github.com/openai/openai-go/packages/param"
 )
 
-// ブログ記事初版生成用のプロンプト
+// Prompt for generating initial blog post draft
 var prompt2 = `
 	あなたはFortnite専門のプロブロガーです。
 	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
@@ -46,7 +46,7 @@ var prompt2 = `
 	%s
 	`
 
-// ブログ記事推敲用のプロンプト
+// Prompt for refining blog post draft
 var prompt3 = `
 	あなたはFortnite専門のプロブロガーです。
 	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
@@ -78,17 +78,17 @@ type Config struct {
 }
 
 func loadFromEnv() *Config {
-	// GCPのシークレットマネージャーからの環境変数値
-	// 環境変数の値が "sm://" で始まる場合、Secret Managerからの自動取得済み値として扱われる
-	// HatenaIdとHatenaBlogIdは固定値として定義
+	// Environment variable values from GCP Secret Manager
+	// If the environment variable value starts with "sm://", it is treated as an automatically retrieved value from Secret Manager
+	// HatenaId and HatenaBlogId are defined as fixed values
 	config := &Config{
 		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
-		HatenaId:     "hatena36",
-		HatenaBlogId: "gaba3h.hatenadiary.jp",
+		HatenaId:     "GABA_FORTNITE",
+		HatenaBlogId: "gaba-fortnite.hatenablog.com",
 		HatenaApiKey: os.Getenv("HATENA_API_KEY"),
 	}
 
-	// 必要な設定値が指定されていることを確認
+	// Verify that required configuration values are specified
 	if config.OpenAIAPIKey != "" && config.HatenaApiKey != "" {
 		return config
 	}
@@ -96,20 +96,20 @@ func loadFromEnv() *Config {
 }
 
 func loadConfig() (*Config, error) {
-	// 1. 環境変数から設定を読み込む
+	// 1. Load configuration from environment variables
 	config := loadFromEnv()
 	if config != nil {
 		return config, nil
 	}
 
-	// 2. 環境変数による設定が不完全な場合、設定ファイルから読み込む
+	// 2. If environment variable configuration is incomplete, load from configuration file
 	configFile := "config.json"
 	data, err := os.ReadFile(configFile)
 	if err != nil {
-		// 設定ファイルの読み込みに失敗した場合、警告ログを出力するが中断はしない
+		// If configuration file reading fails, output a warning log but do not abort
 		slog.Warn("Failed to read config file", "error", err)
 
-		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
+		// If configuration cannot be obtained from both environment variables and configuration file, return an error
 		if config == nil {
 			return nil, fmt.Errorf("failed to load configuration from environment variables or config file: %v", err)
 		}
@@ -120,7 +120,7 @@ func loadConfig() (*Config, error) {
 	if err := json.Unmarshal(data, &fileConfig); err != nil {
 		slog.Error("Failed to parse JSON", "error", err)
 
-		// 環境変数からも設定ファイルからも設定を取得できなかった場合、エラーを返す
+		// If configuration cannot be obtained from both environment variables and configuration file, return an error
 		if config == nil {
 			return nil, fmt.Errorf("failed to parse JSON: %v", err)
 		}
@@ -130,7 +130,7 @@ func loadConfig() (*Config, error) {
 	return &fileConfig, nil
 }
 
-// AtomPub API に送る XML の構造体
+// XML structure to send to AtomPub API
 type Entry struct {
 	XMLName xml.Name `xml:"entry"`
 	Xmlns   string   `xml:"xmlns,attr"`
@@ -150,7 +150,7 @@ type ContentJson struct {
 	Content string `json:"content"`
 }
 
-// RSSフィード用の構造体
+// RSS feed structure
 type RSS struct {
 	XMLName xml.Name `xml:"rss"`
 	Channel struct {
@@ -168,12 +168,12 @@ type Article struct {
 	PubDate time.Time
 }
 
-// HTTPClient interfaceを定義
+// HTTPClient interface definition
 type HTTPClient interface {
 	Get(url string) (*http.Response, error)
 }
 
-// デフォルトのHTTPクライアント
+// Default HTTP client
 var defaultHTTPClient HTTPClient = &http.Client{}
 
 func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, baseURL string) ([]Article, error) {
@@ -190,7 +190,7 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 	url := fmt.Sprintf("%s?q=%s+after:%s+before:%s&hl=ja&gl=JP&ceid=JP:ja", baseURL, searchword, lastweek, today)
 	slog.Info("RSS feed URL", "url", url)
 
-	// RSSフィードを取得
+	// Get RSS feed
 	resp, err := httpClient.Get(url)
 	if err != nil {
 		slog.Error("Failed to retrieve RSS feed", "error", err)
@@ -202,14 +202,14 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 		}
 	}()
 
-	// XMLをパース
+	// Parse XML
 	var rss RSS
 	if err := xml.NewDecoder(resp.Body).Decode(&rss); err != nil {
 		slog.Error("Failed to parse XML", "error", err)
 		return nil, fmt.Errorf("failed to parse XML: %v", err)
 	}
 
-	// 記事情報を抽出
+	// Extract article information
 	var articles []Article
 	for _, item := range rss.Channel.Items {
 		pubDate, err := time.Parse(time.RFC1123, item.PubDate)
@@ -226,7 +226,7 @@ func getLatestFromRSS(searchword string, now time.Time, httpClient HTTPClient, b
 
 	slog.Info("Articles retrieved from RSS feed", "count", len(articles))
 
-	// articlesを日付が最新になるようソート
+	// Sort articles by date with latest first
 	sort.Slice(articles, func(i, j int) bool {
 		return articles[i].PubDate.After(articles[j].PubDate)
 	})
@@ -318,8 +318,9 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		option.WithAPIKey(config.OpenAIAPIKey),
 	)
 
-	var contentJson3 ContentJson
+	var resultContent ContentJson
 	var title string
+
 	maxRetries := 5
 	minContentLength := 1000
 
@@ -339,64 +340,82 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		resp = strings.TrimPrefix(resp, "```json\n")
 		resp = strings.ReplaceAll(resp, "`", "")
 
-		var contentJson2 ContentJson
-		err = json.Unmarshal([]byte(resp), &contentJson2)
+		var initialContent ContentJson
+		err = json.Unmarshal([]byte(resp), &initialContent)
 		if err != nil {
 			slog.Error("Failed to parse initial response JSON", "response", resp, "error", err)
 			return "", "", fmt.Errorf("failed to parse initial response JSON: %w", err)
 		}
 
-		slog.Info("Initial content generated", "length", len(contentJson2.Content))
+		slog.Info("Initial content generated", "length", len(initialContent.Content))
 
-		// == second phase : 初版の推敲 ==
+		// == second phase : revision of draft ==
 		chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
 			Messages: []openai.ChatCompletionMessageParamUnion{
-				openai.UserMessage(fmt.Sprintf(prompt3, contentJson2.Content)),
+				openai.UserMessage(fmt.Sprintf(prompt3, initialContent.Content)),
 			},
 			Model: openai.ChatModelO1Preview,
 		})
 		if err != nil {
 			return "", "", fmt.Errorf("failed to request OpenAI API for refined version: %w", err)
 		}
-
 		resp = chatCompletion.Choices[0].Message.Content
-		resp = strings.TrimPrefix(resp, "```json\n")
-		resp = strings.ReplaceAll(resp, "`", "")
+		slog.Info("Raw refined response", "raw_response", resp, "length", len(resp))
 
-		err = json.Unmarshal([]byte(resp), &contentJson3)
-		if err != nil {
-			slog.Error("Failed to parse refined response JSON", "response", resp, "error", err)
-			// Use the initial content if JSON parsing fails
-			contentJson3 = contentJson2
+		// More careful JSON extraction processing
+		respCleaned := resp
+		// Remove only if it starts with ```json and ends with ```
+		if strings.HasPrefix(respCleaned, "```json\n") {
+			respCleaned = strings.TrimPrefix(respCleaned, "```json\n")
+			if strings.HasSuffix(respCleaned, "\n```") {
+				respCleaned = strings.TrimSuffix(respCleaned, "\n```")
+			} else if strings.HasSuffix(respCleaned, "```") {
+				respCleaned = strings.TrimSuffix(respCleaned, "```")
+			}
 		}
 
-		slog.Info("Refined content generated", "length", len(contentJson3.Content))
+		// Find JSON start position
+		jsonStart := strings.Index(respCleaned, "{")
+		jsonEnd := strings.LastIndex(respCleaned, "}")
+
+		if jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart {
+			respCleaned = respCleaned[jsonStart : jsonEnd+1]
+		}
+
+		slog.Info("Processed refined response", "processed_response", respCleaned, "length", len(respCleaned))
+		err = json.Unmarshal([]byte(respCleaned), &resultContent)
+		if err != nil {
+			slog.Error("Failed to parse refined response JSON", "response", resp, "error", err)
+			return "", "", fmt.Errorf("failed to parse result response JSON: %w", err)
+		}
+
+		slog.Info("Refined content generated", "length", len(resultContent.Content))
 
 		// Check if the content is long enough
-		if utf8.RuneCountInString(contentJson3.Content) >= minContentLength {
+		if utf8.RuneCountInString(resultContent.Content) >= minContentLength {
 			// Content is long enough, break the retry loop
-			slog.Info("Generated content meets length requirement", "length", utf8.RuneCountInString(contentJson3.Content))
+			slog.Info("Generated content meets length requirement", "length", utf8.RuneCountInString(resultContent.Content))
 			break
 		}
 
 		// Content is too short, retry
 		slog.Info("Generated content is too short, retrying",
-			"length", utf8.RuneCountInString(contentJson3.Content),
+			"length", utf8.RuneCountInString(resultContent.Content),
 			"required", minContentLength,
 			"attempt", i+1,
 			"maxRetries", maxRetries)
 
 		// If this is the last retry and content is still too short, return an error
 		if i == maxRetries-1 {
-			contentLength := utf8.RuneCountInString(contentJson3.Content)
+			contentLength := utf8.RuneCountInString(resultContent.Content)
 			return "", "", fmt.Errorf("generated content is too short. Final length: %d characters, required: %d characters or more", contentLength, minContentLength)
 		}
 	}
 
 	pubDate := now.Format("2006/01/02")
-	title = fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
+	title = fmt.Sprintf("【%s】%s", pubDate, resultContent.Title)
 
-	return title, addContentFormat(contentJson3.Content), nil
+	return title, addContentFormat(resultContent.Content), nil
 }
 
 func addContentFormat(content string) string {
@@ -433,7 +452,7 @@ func addContentFormat(content string) string {
 
 	b := make([]byte, 1)
 	if _, err := rand.Read(b); err != nil {
-		// エラーが発生した場合は最初のリンクを使用
+		// Use the first link if an error occurs
 		return hello + content + links[0] + disclaimer
 	}
 	index := int(b[0]) % len(links)
@@ -451,7 +470,7 @@ func post(title, content string) (string, error) {
 	// Hatena Blog API endpoint
 	endpoint := fmt.Sprintf("https://blog.hatena.ne.jp/%s/%s/atom/entry", config.HatenaId, config.HatenaBlogId)
 
-	// 投稿する記事のデータ
+	// Article data to be posted
 	entry := Entry{
 		Xmlns:   "http://www.w3.org/2005/Atom",
 		Title:   title,
@@ -461,7 +480,7 @@ func post(title, content string) (string, error) {
 	entry.Content.Value = content
 	entry.Category.Term = "フォートナイト"
 
-	// XML に変換
+	// Convert to XML
 	xmlData, err := xml.MarshalIndent(entry, "", "  ")
 	if err != nil {
 		slog.Error("XML encoding failed", "error", err)
@@ -471,18 +490,18 @@ func post(title, content string) (string, error) {
 	xmlWithHeader := append([]byte(xml.Header), xmlData...)
 	slog.Info("XML data prepared for posting", "length", len(xmlWithHeader))
 
-	// HTTP リクエスト作成
+	// Create HTTP request
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(xmlWithHeader))
 	if err != nil {
 		slog.Error("Failed to create request", "error", err)
 		return "", err
 	}
 
-	// ヘッダー設定
+	// Set headers
 	req.SetBasicAuth(config.HatenaId, config.HatenaApiKey)
 	req.Header.Set("Content-Type", "application/xml")
 
-	// HTTP クライアントでリクエスト送信
+	// Send HTTP request with client
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
