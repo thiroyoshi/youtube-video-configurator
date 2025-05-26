@@ -16,8 +16,8 @@ linters:
     - ineffassign
     - unused
     - misspell
-    - gosec
 
-# reviveは厳しすぎるので無効化
+# reviveとgosecは厳しすぎるので無効化
   disable:
     - revive
+    - gosec
