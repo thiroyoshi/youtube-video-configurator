@@ -37,7 +37,7 @@ resource "google_cloudfunctions2_function" "blog_post" {
     min_instance_count             = 0
     max_instance_count             = 1
     available_memory               = "256M"
-    timeout_seconds                = 60
+    timeout_seconds                = 600
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
   }
