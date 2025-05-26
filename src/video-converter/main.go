@@ -177,11 +177,6 @@ func updateVideoSnippet(videoID, title, accessToken string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		// Read the response body for more details
 		body, _ := io.ReadAll(resp.Body)
-		defer func() {
-			if cerr := resp.Body.Close(); cerr != nil {
-				slog.Error("failed to close response body", "error", cerr)
-			}
-		}()
 		slog.Error("failed to update snippet", "status", resp.Status, "body", string(body))
 		return nil, fmt.Errorf("failed to update snippet: status code %d", resp.StatusCode)
 	}

@@ -25,7 +25,6 @@ resource "google_cloudfunctions2_function" "blog_post" {
     timeout_seconds                = 60
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
-    secret_environment_variables   = []
   }
   event_trigger {
     trigger_region = var.region

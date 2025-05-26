@@ -1,6 +1,6 @@
 module thiroyoshi.com/blog-post
 
-go 1.24
+go 1.24.3
 
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
