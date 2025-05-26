@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -43,7 +44,13 @@ func postMessageToSlack(message string) error {
 	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		slog.Error("slack returned non-2xx status", "status", resp.StatusCode)
+		// Read response body for more detailed error information
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			slog.Error("failed to read slack error response body", "error", readErr)
+		} else {
+			slog.Error("slack returned non-2xx status", "status", resp.StatusCode, "body", string(body))
+		}
 		return fmt.Errorf("slack returned non-2xx status: %d", resp.StatusCode)
 	}
 
