@@ -15,9 +15,24 @@ resource "google_cloudfunctions2_function" "blog_post" {
     service_account_email = google_service_account.function_sa.email
     environment_variables = {
       GOOGLE_CLOUD_PROJECT = var.project_id
-      OPENAI_API_KEY       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.openai_api_key.secret_id}/versions/latest"
-      HATENA_API_KEY       = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.hatena_api_key.secret_id}/versions/latest"
-      SLACK_WEBHOOK_URL    = "sm://projects/${var.project_id}/secrets/${google_secret_manager_secret.slack_webhook_url.secret_id}/versions/latest"
+    }
+    secret_environment_variables {
+      key        = "OPENAI_API_KEY"
+      project_id = var.project_id
+      secret     = google_secret_manager_secret.openai_api_key.secret_id
+      version    = "latest"
+    }
+    secret_environment_variables {
+      key        = "HATENA_API_KEY"
+      project_id = var.project_id
+      secret     = google_secret_manager_secret.hatena_api_key.secret_id
+      version    = "latest"
+    }
+    secret_environment_variables {
+      key        = "SLACK_WEBHOOK_URL"
+      project_id = var.project_id
+      secret     = google_secret_manager_secret.slack_webhook_url.secret_id
+      version    = "latest"
     }
     min_instance_count             = 0
     max_instance_count             = 1
