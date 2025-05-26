@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 )
 
 func postMessageToSlack(message string) error {
@@ -16,6 +18,10 @@ func postMessageToSlack(message string) error {
 		slog.Warn("slack webhook URL not configured, skipping slack notification")
 		return nil
 	}
+
+	// Log masked webhook URL for debugging purposes
+	maskedURL := maskWebhookURL(slackURL)
+	slog.Info("posting message to slack", "webhook_url", maskedURL)
 
 	slackPayload := map[string]string{"text": message}
 	slackPayloadBytes, err := json.Marshal(slackPayload)
@@ -29,9 +35,12 @@ func postMessageToSlack(message string) error {
 		slog.Error("failed to create slack request", "error", err)
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("User-Agent", "BlogPost-SlackNotifier")
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 10 * time.Second, // Add a reasonable timeout
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		slog.Error("failed to send slack request", "error", err)
@@ -56,4 +65,21 @@ func postMessageToSlack(message string) error {
 
 	slog.Info("successfully posted message to slack")
 	return nil
+}
+
+// maskWebhookURL masks most of the webhook URL for security while still allowing
+// identification of the webhook endpoint for debugging
+func maskWebhookURL(url string) string {
+	if len(url) <= 30 {
+		return "***masked***"
+	}
+	// Keep the domain/host part and mask the path/token
+	parts := strings.Split(url, "/")
+	if len(parts) <= 3 {
+		return "***masked***"
+	}
+	
+	// Show domain but mask the path/token parts
+	visiblePart := strings.Join(parts[0:3], "/")
+	return visiblePart + "/***masked***"
 }
