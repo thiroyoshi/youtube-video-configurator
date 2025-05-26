@@ -26,6 +26,12 @@ const (
 	playlistNormal          = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
 	playlistShort           = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
 	fortniteSeason          = "C6S3"
+	// X API credentials
+	xAPIKey            = "vR8oo1pAQFgeYKlfxIPSrgRq6"
+	xAPISecretKey      = "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
+	xAccessToken       = "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
+	xAccessTokenSecret = "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
+	xAPIEndpoint       = "https://api.twitter.com/2/tweets"
 )
 
 // FunctionsRequest はCloud Functionsへのリクエストデータを表す構造体です。
@@ -222,19 +228,13 @@ func addVideoToPlaylist(videoID, playListId, accessToken string) ([]byte, error)
 }
 
 func postX(url string) error {
-	// APIキーとアクセストークンを設定
-	apiKey := "vR8oo1pAQFgeYKlfxIPSrgRq6"
-	apiSecretKey := "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
-	accessToken := "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
-	accessTokenSecret := "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
-
 	// OAuth1 認証設定
-	config := oauth1.NewConfig(apiKey, apiSecretKey)
-	token := oauth1.NewToken(accessToken, accessTokenSecret)
+	config := oauth1.NewConfig(xAPIKey, xAPISecretKey)
+	token := oauth1.NewToken(xAccessToken, xAccessTokenSecret)
 	httpClient := config.Client(oauth1.NoContext, token)
 
 	// APIエンドポイントURL
-	endpoint := "https://api.twitter.com/2/tweets"
+	endpoint := xAPIEndpoint
 
 	// Data structure for the Tweet
 	type Tweet struct {

@@ -13,20 +13,22 @@ import (
 	"github.com/dghubble/oauth1"
 )
 
-func getLatestPostsFromX(now time.Time) (string, error) {
-	// APIキーとアクセストークンを設定
-	apiKey := "vR8oo1pAQFgeYKlfxIPSrgRq6"
-	apiSecretKey := "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
-	accessToken := "1449548285354516482-BxphqsVkM9LQUjHzIVpHnJ2DqcGQTw"
-	accessTokenSecret := "1fj79P9ttUavCvjH7iZGVITuTgbqx5VqgrEznLPJTsVvU"
+const (
+	// X API endpoint for user tweets
+	xAPIUserTweetsEndpoint = "https://api.twitter.com/2/users/1449548285354516482/tweets"
+	// X API maximum results per request
+	xAPIMaxResults = "100"
+)
 
+func getLatestPostsFromX(now time.Time) (string, error) {
 	// OAuth1 認証設定
+
 	config := oauth1.NewConfig(apiKey, apiSecretKey)
 	token := oauth1.NewToken(accessToken, accessTokenSecret)
 	httpClient := config.Client(oauth1.NoContext, token)
 
 	// APIエンドポイントURL
-	endpoint := "https://api.twitter.com/2/users/1449548285354516482/tweets"
+	endpoint := xAPIUserTweetsEndpoint
 	// endpoint := "https://api.x.com/2/users/by/username/GABA_FORTNITE/"
 
 	// Data structure for the Tweet
@@ -42,7 +44,7 @@ func getLatestPostsFromX(now time.Time) (string, error) {
 	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02T15:04:05Z")
 
 	params := url.Values{}
-	params.Add("max_results", "100")
+	params.Add("max_results", xAPIMaxResults)
 	params.Add("media.fields", "variants")
 	params.Add("start_time", yesterday)
 	params.Add("end_time", today)
