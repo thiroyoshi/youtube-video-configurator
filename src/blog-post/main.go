@@ -358,10 +358,10 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		})
 		if err != nil {
 			return "", "", fmt.Errorf("failed to request OpenAI API for refined version: %w", err)
-		}		
+		}
 		resp = chatCompletion.Choices[0].Message.Content
 		slog.Info("Raw refined response", "raw_response", resp, "length", len(resp))
-		
+
 		// JSONを抽出するより慎重な処理
 		respCleaned := resp
 		// ```json で始まり ``` で終わる場合のみ除去
@@ -373,15 +373,15 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 				respCleaned = strings.TrimSuffix(respCleaned, "```")
 			}
 		}
-		
+
 		// JSON開始位置を探す
 		jsonStart := strings.Index(respCleaned, "{")
 		jsonEnd := strings.LastIndex(respCleaned, "}")
-		
+
 		if jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart {
 			respCleaned = respCleaned[jsonStart : jsonEnd+1]
 		}
-		
+
 		slog.Info("Processed refined response", "processed_response", respCleaned, "length", len(respCleaned))
 		err = json.Unmarshal([]byte(respCleaned), &resultContent)
 		if err != nil {
