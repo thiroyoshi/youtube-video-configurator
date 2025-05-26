@@ -156,8 +156,7 @@ func TestLoadFromEnv(t *testing.T) {
 		envVars  map[string]string
 		wantNil  bool
 		wantVals map[string]string
-	}{
-		{
+	}{		{
 			name: "すべての必要な環境変数が設定されている場合",
 			envVars: map[string]string{
 				"OPENAI_API_KEY": "test_openai_key",
@@ -166,8 +165,8 @@ func TestLoadFromEnv(t *testing.T) {
 			wantNil: false,
 			wantVals: map[string]string{
 				"OpenAIAPIKey": "test_openai_key",
-				"HatenaId":     "hatena36",
-				"HatenaBlogId": "gaba3h.hatenadiary.jp",
+				"HatenaId":     "GABA_FORTNITE",
+				"HatenaBlogId": "gaba-fortnite.hatenablog.com",
 				"HatenaApiKey": "test_hatena_api_key",
 			},
 		},
