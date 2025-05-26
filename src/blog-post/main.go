@@ -26,11 +26,6 @@ const (
 	hatenaBlogId = "gaba3h.hatenadiary.jp"
 )
 
-const (
-	hatenaId     = "hatena36"
-	hatenaBlogId = "gaba3h.hatenadiary.jp"
-)
-
 // Prompt for generating initial blog post draft
 var prompt2 = `
 	あなたはFortnite専門のプロブロガーです。
