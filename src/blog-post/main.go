@@ -318,8 +318,9 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		option.WithAPIKey(config.OpenAIAPIKey),
 	)
 
-	var contentJson3 ContentJson
+	var resultContent ContentJson
 	var title string
+
 	maxRetries := 5
 	minContentLength := 1000
 
@@ -339,64 +340,82 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 		resp = strings.TrimPrefix(resp, "```json\n")
 		resp = strings.ReplaceAll(resp, "`", "")
 
-		var contentJson2 ContentJson
-		err = json.Unmarshal([]byte(resp), &contentJson2)
+		var initialContent ContentJson
+		err = json.Unmarshal([]byte(resp), &initialContent)
 		if err != nil {
 			slog.Error("Failed to parse initial response JSON", "response", resp, "error", err)
 			return "", "", fmt.Errorf("failed to parse initial response JSON: %w", err)
 		}
 
-		slog.Info("Initial content generated", "length", len(contentJson2.Content))
+		slog.Info("Initial content generated", "length", len(initialContent.Content))
 
 		// == second phase : 初版の推敲 ==
 		chatCompletion, err = client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
 			Messages: []openai.ChatCompletionMessageParamUnion{
-				openai.UserMessage(fmt.Sprintf(prompt3, contentJson2.Content)),
+				openai.UserMessage(fmt.Sprintf(prompt3, initialContent.Content)),
 			},
 			Model: openai.ChatModelO1Preview,
 		})
 		if err != nil {
 			return "", "", fmt.Errorf("failed to request OpenAI API for refined version: %w", err)
-		}
-
+		}		
 		resp = chatCompletion.Choices[0].Message.Content
-		resp = strings.TrimPrefix(resp, "```json\n")
-		resp = strings.ReplaceAll(resp, "`", "")
-
-		err = json.Unmarshal([]byte(resp), &contentJson3)
+		slog.Info("Raw refined response", "raw_response", resp, "length", len(resp))
+		
+		// JSONを抽出するより慎重な処理
+		respCleaned := resp
+		// ```json で始まり ``` で終わる場合のみ除去
+		if strings.HasPrefix(respCleaned, "```json\n") {
+			respCleaned = strings.TrimPrefix(respCleaned, "```json\n")
+			if strings.HasSuffix(respCleaned, "\n```") {
+				respCleaned = strings.TrimSuffix(respCleaned, "\n```")
+			} else if strings.HasSuffix(respCleaned, "```") {
+				respCleaned = strings.TrimSuffix(respCleaned, "```")
+			}
+		}
+		
+		// JSON開始位置を探す
+		jsonStart := strings.Index(respCleaned, "{")
+		jsonEnd := strings.LastIndex(respCleaned, "}")
+		
+		if jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart {
+			respCleaned = respCleaned[jsonStart : jsonEnd+1]
+		}
+		
+		slog.Info("Processed refined response", "processed_response", respCleaned, "length", len(respCleaned))
+		err = json.Unmarshal([]byte(respCleaned), &resultContent)
 		if err != nil {
 			slog.Error("Failed to parse refined response JSON", "response", resp, "error", err)
-			// Use the initial content if JSON parsing fails
-			contentJson3 = contentJson2
+			return "", "", fmt.Errorf("failed to parse result response JSON: %w", err)
 		}
 
-		slog.Info("Refined content generated", "length", len(contentJson3.Content))
+		slog.Info("Refined content generated", "length", len(resultContent.Content))
 
 		// Check if the content is long enough
-		if utf8.RuneCountInString(contentJson3.Content) >= minContentLength {
+		if utf8.RuneCountInString(resultContent.Content) >= minContentLength {
 			// Content is long enough, break the retry loop
-			slog.Info("Generated content meets length requirement", "length", utf8.RuneCountInString(contentJson3.Content))
+			slog.Info("Generated content meets length requirement", "length", utf8.RuneCountInString(resultContent.Content))
 			break
 		}
 
 		// Content is too short, retry
 		slog.Info("Generated content is too short, retrying",
-			"length", utf8.RuneCountInString(contentJson3.Content),
+			"length", utf8.RuneCountInString(resultContent.Content),
 			"required", minContentLength,
 			"attempt", i+1,
 			"maxRetries", maxRetries)
 
 		// If this is the last retry and content is still too short, return an error
 		if i == maxRetries-1 {
-			contentLength := utf8.RuneCountInString(contentJson3.Content)
+			contentLength := utf8.RuneCountInString(resultContent.Content)
 			return "", "", fmt.Errorf("generated content is too short. Final length: %d characters, required: %d characters or more", contentLength, minContentLength)
 		}
 	}
 
 	pubDate := now.Format("2006/01/02")
-	title = fmt.Sprintf("【%s】%s", pubDate, contentJson3.Title)
+	title = fmt.Sprintf("【%s】%s", pubDate, resultContent.Title)
 
-	return title, addContentFormat(contentJson3.Content), nil
+	return title, addContentFormat(resultContent.Content), nil
 }
 
 func addContentFormat(content string) string {
