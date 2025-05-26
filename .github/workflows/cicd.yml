@@ -18,21 +18,21 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: lint video-converter
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           working-directory: src/video-converter
           args: --config=../../configs/.golangci.yaml -v
 
       - name: lint converter-starter
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           working-directory: src/convert-starter
           args: --config=../../configs/.golangci.yaml -v
 
       - name: lint blog-post
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           working-directory: src/blog-post

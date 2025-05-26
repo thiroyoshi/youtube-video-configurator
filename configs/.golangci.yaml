@@ -3,8 +3,21 @@ version: "2"
 run:
   timeout: 3m
   go: '1.24'
-  allow-parallel-runners: true
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unused
+    - misspell
+
+# reviveとgosecは厳しすぎるので無効化
+  disable:
+    - revive
+    - gosec
