@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	hatenaId     = "hatena36"
-	hatenaBlogId = "gaba3h.hatenadiary.jp"
+	hatenaId     = "GABA_FORTNITE"
+	hatenaBlogId = "gaba-fortnite.hatenablog.com"
 )
 
 // Prompt for generating initial blog post draft
