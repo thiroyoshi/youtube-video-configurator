@@ -25,7 +25,7 @@ const (
 	youtubeVideoUploadScope = "https://www.googleapis.com/auth/youtube.upload"
 	playlistNormal          = "PLTSYDCu3sM9JLlRtt7LU6mfM8N8zQSYGq"
 	playlistShort           = "PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O"
-	fortniteSeason          = "C6S4"
+	fortniteSeason          = "C6S3"
 	// X API credentials
 	xAPIKey            = "vR8oo1pAQFgeYKlfxIPSrgRq6"
 	xAPISecretKey      = "fyS3Nm8tEsSQOKK9Ez77TQn7Fi2A3HSO7ZdkDAArshXCSxNXT0"
