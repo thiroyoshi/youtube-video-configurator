@@ -128,7 +128,7 @@ func getVideoSnippet(videoID, videoTitle string) string {
 	▼ おもしろショート
 	　https://www.youtube.com/playlist?list=PLTSYDCu3sM9LEQ27HYpSlCMrxHyquc-_O
 
-	#Fortnite #gameplay #フォートナイト #プレイ動画 #ps5 #ps5Share
+	#Fortnite #gameplay #フォートナイト #プレイ動画 #ps5 #ps5Share #controller #pad #fortniteclips
 	`
 
 	categoryID := "20"
