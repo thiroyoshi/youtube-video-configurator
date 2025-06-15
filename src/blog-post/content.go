@@ -77,7 +77,7 @@ func getSummaries(articles []Article, limit int, now time.Time) (string, error) 
 	}
 
 	today := now.Format("2006年01月02日")
-	lastweek := now.AddDate(0, 0, -7).Format("2006年01月02日")
+	lastweek := now.AddDate(0, 0, -3).Format("2006年01月02日")
 
 	systemRole := `
 	あなたはFortnite専門のプロブロガーです。
