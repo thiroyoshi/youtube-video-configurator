@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 )
 
 func postMessageToSlack(message string) error {
-	slackURL := os.Getenv("SLACK_WEBHOOK_URL")
+	slackURL := "https://hooks.slack.com/services/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"
 	if slackURL == "" {
 		slog.Warn("slack webhook URL not configured, skipping slack notification")
 		return nil
