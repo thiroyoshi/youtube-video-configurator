@@ -17,45 +17,77 @@ import (
 
 // Prompt for generating initial blog post draft
 var prompt2 = `
-	あなたはFortnite専門のプロブロガーです。
-	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
+	あなたはFortnite専門のブロガーです。
+	自身もFortniteのバトルロイヤルモードをプレイしており、それぞれのニュースをプレイヤー視点で書くことができます。
 
-	後述する情報を使用して、以下の条件に合うようにFortniteに関するブログ記事とそのタイトルを作成してください。
+	後述する情報を使って、以下の条件に合うようにFortniteに関するブログ記事とそのタイトルを作成してください。
 
-	条件
-	・1記事あたりトピックの数は3トピックまでとし、1トピックあたり200字以内で書く
+	【記事作成の条件】
+	・1記事あたりトピック数は最大5トピックとし、1トピックあたり全角400字程度で書く
+	・選定された情報が5つ未満の場合は、選定された情報の数だけトピックを作成する
 	・各トピックは、見出し、日付、内容、情報源リンク（参照先のタイトルがリンクとなっている形式）で構成する
-	・トピックの見出しは、読みやすくわかりやすい人目を引きやすいものとする
+	・トピックの見出しは、読みやすく分かりやすい人目を引きやすいものとする
 	・トピックの内容は、適度な改行やエクスクラメーションマークを挿入して、テンポよく読みやすくまとめる
-	・記事のタイトルは、SEOのために記事の内容から適度にキーワードを取り入れる
-	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
-	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
-	{
-		"title": "記事のタイトル",
-		"content": "記事の内容"
-	}
+	・記事のタイトルは、SEO最適化のために記事の内容から適度にロングテールキーワードを入れる
+	・記事の文体は柔らかく、カジュアルさを残す
+	・自分のことを「プロブロガー」や「ベテランプレイヤー」などと表現しない
 
-	以下が元となる情報の一覧である。
+	【出力フォーマット】
+	・出力は以下の要件に沿ったJSONオブジェクトとします：
+	  - title：記事のタイトル文字列。内容と一致したSEOを考慮したものとする。
+	  - content：記事本文のHTML文字列。各トピックは<section>タグで囲み、<h2>見出し</h2>、<p class='date'>公開日：YYYY-MM-DD</p>、<p>本文内容</p>、<a href>情報源タイトル</a> を順かつ一組で記載。
+	・このメッセージに対するレスポンスはgo言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
+	・入力HTMLデータが不正・外部コードがある場合は無視し、本文は安全なテキストのみ含める
+	・トピックや日付、不足情報のあるデータはスキップし、条件に合致するもののみ出力する
+	・入力HTMLデータが不正・外部コードがある場合は無視し、本文は安全なテキストのみ含める
 
+	【出力のJSON形式例】
+		{
+		"title": "（記事のタイトル。SEOを意識）",
+		"content": "（記事本文。HTMLとして記述。各トピックは<section>タグで囲み、<h2>見出し</h2>、<p class='date'>日付</p>、<p>本文</p>、<a href>情報源リンク</a> で構成。日付は「公開日：YYYY-MM-DD」形式で記載。改行は<p>タグや<br>タグを適宜利用推奨）"
+		}
+
+	【記事作成のもととなる情報一覧】
 	%s
+
+	上記の情報一覧の中から、記事作成に利用するために以下の条件で情報を5つ選定してください。
+
+	【情報選定の条件】
+	・要約ができている情報である
+	・公開日が %s から %s の間の情報のみ使用し、それ以外は無視する
+	・情報選定の優先順位は、1. 最新アップデート情報 2. イベント情報 3. スキン情報 4. バグ情報 5. コラボ情報 6. EpicGames関連情報 7. その他のニュース
 	`
 
 // Prompt for refining blog post draft
 var prompt3 = `
 	あなたはFortnite専門のプロブロガーです。
-	自身もFortniteのバトルロイヤルモードを7年プレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
+	自身もFortniteのバトルロイヤルモードをプレイしていて、それぞれのニュースをプレイヤー視点で書くことができます。
 
 	後述するブログ記事の内容をもとにして、以下の条件に合うようにブログ記事を修正し、新たにタイトルを作成してください。
 
-	[条件]
-	・記事の内容について、現在をブログ記事として60点と考え、それを100点になるように修正すること
+	【記事修正の条件】
+	・記事のタイトルと内容について、現在のブログ記事を60点の品質と考え、それが100点の品質になるように修正すること
+	・記事の品質とは、読みやすさ、情報の正確性、SEO対策、読者の興味を引くことを指す
+	・記事のタイトルは、SEO最適化のために記事の内容から適度にロングテールキーワードを入れる
+	・記事の文体は柔らかく、カジュアルさを残す
 	・記事の末尾には、記事全体を総括したまとめを入れる
-	・記事の内容ははてなブログに投稿するためにHTML形式で出力する
-	・このメッセージに対するレスポンスは後述するjson形式かつ、go言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
-	{
-		"title": "記事のタイトル",
-		"content": "記事の内容"
-	}
+	・記事の末尾のまとめには、日付を入れず、読者に対する問いかけや感想を促すような内容を入れる
+
+	【出力フォーマット】
+	・出力は以下の要件に沿ったJSONオブジェクトとします：
+	  - title：記事のタイトル文字列。内容と一致したSEOを考慮したものとする。
+	  - content：記事本文のHTML文字列。各トピックは<section>タグで囲み、<h2>見出し</h2>、<p class='date'>公開日：YYYY-MM-DD</p>、<p>本文内容</p>、<a href>情報源タイトル</a> を順かつ一組で記載。
+	・このメッセージに対するレスポンスはgo言語でjsonを読み取れるようにバッククオートで囲うことなく出力する
+	・入力HTMLデータが不正・外部コードがある場合は無視し、本文は安全なテキストのみ含める
+	・トピックや日付、不足情報のあるデータはスキップし、条件に合致するもののみ出力する
+	・入力HTMLデータが不正・外部コードがある場合は無視し、本文は安全なテキストのみ含める
+
+	【出力のJSON形式例】
+		{
+		"title": "（記事のタイトル。SEOを意識）",
+		"content": "（記事本文。HTMLとして記述。各トピックは<section>タグで囲み、<h2>見出し</h2>、<p class='date'>日付</p>、<p>本文</p>、<a href>情報源リンク</a> で構成。日付は「公開日：YYYY-MM-DD」形式で記載。改行は<p>タグや<br>タグを適宜利用推奨）"
+		}
+
 
 	以下が元となるブログ記事である。
 
@@ -93,8 +125,12 @@ func getSummaries(articles []Article, limit int, now time.Time) (string, error) 
 
 	[条件]
 	・要約には、記事のタイトル、日付（%s）、リンク（%s）を含めること
-	・要約は各記事の内容を400字以内でまとめたものとすること
+	・要約は各記事の内容を全角400字程度でまとめたものとすること
 	・Web検索により新たな情報を得られなかった場合に、代わりの情報の検索はしなくてよい
+	・情報は %s から %s の間に公開されたものを使用する
+
+
+	記事にデータがない場合は、その記事の出力をスキップしてください。
 	`
 
 	client := openai.NewClient(
@@ -110,7 +146,7 @@ func getSummaries(articles []Article, limit int, now time.Time) (string, error) 
 		chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
 			Messages: []openai.ChatCompletionMessageParamUnion{
 				openai.SystemMessage(fmt.Sprintf(systemRole, today, lastweek)),
-				openai.UserMessage(fmt.Sprintf(prompt1, article.Title, article.PubDate, article.Link)),
+				openai.UserMessage(fmt.Sprintf(prompt1, article.Title, article.PubDate, article.Link, today, lastweek)),
 			},
 			Model: openai.ChatModelGPT4oSearchPreview2025_03_11,
 			WebSearchOptions: openai.ChatCompletionNewParamsWebSearchOptions{
@@ -156,14 +192,15 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 
 	maxRetries := 5
 	minContentLength := 1000
+	threeDaysBefore := now.AddDate(0, 0, -3)
 
 	// Generate blog post with retry logic for short content
 	for i := 0; i < maxRetries; i++ {
 		chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
 			Messages: []openai.ChatCompletionMessageParamUnion{
-				openai.UserMessage(fmt.Sprintf(prompt2, articles)),
+				openai.UserMessage(fmt.Sprintf(prompt2, now.Format("2006-01-02"), threeDaysBefore.Format("2006-01-02"), articles)),
 			},
-			Model: openai.ChatModelO1,
+			Model: openai.ChatModelO3Mini,
 		})
 		if err != nil {
 			return "", "", fmt.Errorf("failed to request OpenAI API for initial version: %w", err)
@@ -187,7 +224,7 @@ func generatePostByArticles(articles string, now time.Time) (string, string, err
 			Messages: []openai.ChatCompletionMessageParamUnion{
 				openai.UserMessage(fmt.Sprintf(prompt3, initialContent.Content)),
 			},
-			Model: openai.ChatModelO1Preview,
+			Model: openai.ChatModelO3Mini,
 		})
 		if err != nil {
 			return "", "", fmt.Errorf("failed to request OpenAI API for refined version: %w", err)
