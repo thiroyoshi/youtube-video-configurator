@@ -29,6 +29,7 @@ func RunBlogPost() error {
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
 		slog.Error("Failed to get timezone", "error", err)
+		postFailedMessageToSlack(err)
 		return fmt.Errorf("failed to load JST location: %v", err)
 	}
 
@@ -38,23 +39,27 @@ func RunBlogPost() error {
 	articles, err := getLatestFromRSS(searchword, now, nil, "")
 	if err != nil {
 		slog.Error("Failed to get RSS feed", "error", err)
+		postFailedMessageToSlack(err)
 		return fmt.Errorf("failed to retrieve RSS feed: %v", err)
 	}
 
 	summaries, err := getSummaries(articles, 10, now)
 	if err != nil {
 		slog.Error("Failed to get article summaries", "error", err)
+		postFailedMessageToSlack(err)
 		return fmt.Errorf("failed to get article summaries: %v", err)
 	}
 
 	title, content, err := generatePostByArticles(summaries, now)
 	if err != nil {
 		slog.Error("Failed to generate blog post", "error", err)
+		postFailedMessageToSlack(err)
 		return fmt.Errorf("failed to generate blog post: %v", err)
 	}
 	url, err := post(title, content)
 	if err != nil {
 		slog.Error("Failed to post to Hatena Blog", "error", err)
+		postFailedMessageToSlack(err)
 		return fmt.Errorf("failed to post to Hatena Blog: %v", err)
 	}
 

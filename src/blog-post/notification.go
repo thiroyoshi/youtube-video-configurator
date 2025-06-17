@@ -49,3 +49,10 @@ func postMessageToSlack(message string) error {
 	slog.Info("successfully posted message to slack")
 	return nil
 }
+
+func postFailedMessageToSlack(err error) {
+	message := fmt.Sprintf("GABAのブログ更新に失敗しました。\n\nエラー内容: %v", err)
+	if err := postMessageToSlack(message); err != nil {
+		slog.Error("failed to post failure message to slack", "error", err)
+	}
+}
