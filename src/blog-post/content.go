@@ -318,6 +318,7 @@ func addContentFormat(content string) string {
 	disclaimer := `
 	<p>※この記事は本日時点の最新情報に基づいて作成しています。過去に紹介した内容と重複していることがあります。</p>
 	<p>[blog:g:26006613551861511:banner] [blog:g:11696248318757265981:banner]</p>
+	<iframe src="https://blog.hatena.ne.jp/GABA_FORTNITE/gaba-fortnite.hatenablog.com/subscribe/iframe" allowtransparency="true" frameborder="0" scrolling="no" width="150" height="28"></iframe>
 	`
 
 	b := make([]byte, 1)
