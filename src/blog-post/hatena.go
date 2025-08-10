@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -22,6 +23,19 @@ type Entry struct {
 	Category struct {
 		Term string `xml:"term,attr"`
 	} `xml:"category"`
+}
+
+// EntryResponse represents the response from AtomPub API
+type EntryResponse struct {
+	XMLName xml.Name `xml:"entry"`
+	Links   []Link   `xml:"link"`
+}
+
+// Link represents a link element in the XML response
+type Link struct {
+	Rel  string `xml:"rel,attr"`
+	Type string `xml:"type,attr"`
+	Href string `xml:"href,attr"`
 }
 
 func post(title, content string) (string, error) {
@@ -85,8 +99,34 @@ func post(title, content string) (string, error) {
 		return "", fmt.Errorf("hatena blog API error: %d", resp.StatusCode)
 	}
 
-	entryURL := resp.Header.Get("Location")
-	slog.Info("Article published", "url", entryURL)
+	// Read response body to extract the actual article URL
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		slog.Error("Failed to read response body", "error", err)
+		return "", fmt.Errorf("failed to read response body: %v", err)
+	}
 
+	// Parse XML response to extract link with rel="alternate"
+	var entryResponse EntryResponse
+	if err := xml.Unmarshal(body, &entryResponse); err != nil {
+		slog.Error("Failed to parse response XML", "error", err)
+		return "", fmt.Errorf("failed to parse response XML: %v", err)
+	}
+
+	// Find the alternate link (HTML URL for the article)
+	var entryURL string
+	for _, link := range entryResponse.Links {
+		if link.Rel == "alternate" && link.Type == "text/html" {
+			entryURL = link.Href
+			break
+		}
+	}
+
+	if entryURL == "" {
+		slog.Error("Article URL not found in response")
+		return "", fmt.Errorf("article URL not found in response")
+	}
+
+	slog.Info("Article published", "url", entryURL)
 	return entryURL, nil
 }
