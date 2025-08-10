@@ -285,7 +285,7 @@ func postX(url string) error {
 	slog.Info("X API response", "status", resp.Status, "body", string(body))
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("twitter API returned unexpected status code: %d", resp.StatusCode)
+		return fmt.Errorf("X API returned unexpected status code: %d", resp.StatusCode)
 	}
 
 	return nil

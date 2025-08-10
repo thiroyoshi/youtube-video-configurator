@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"thiroyoshi.com/blog-post/x"
 )
 
 // blogPost is an HTTP Cloud Function.
@@ -63,11 +64,16 @@ func RunBlogPost() error {
 		return fmt.Errorf("failed to post to Hatena Blog: %v", err)
 	}
 
-	message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
-	if err = postMessageToSlack(message); err != nil {
-		slog.Error("Failed to post message to Slack", "error", err)
-		return fmt.Errorf("failed to post message to slack: %v", err)
+	xMessage := fmt.Sprintf("ブログを更新しました！\n #GABA #Fortnite #フォートナイト\n\n%s\n%s", title, url)
+	if err = x.PostToX(xMessage); err != nil {
+		slog.Error("Failed to post message to X", "error", err)
 	}
+
+	// message := fmt.Sprintf("GABAのブログを更新しました！\n\n%s\n%s", title, url)
+	// if err = postMessageToSlack(message); err != nil {
+	// 	slog.Error("Failed to post message to Slack", "error", err)
+	// 	return fmt.Errorf("failed to post message to slack: %v", err)
+	// }
 
 	fmt.Printf("Blog post successfully completed!\nTitle: %s\nURL: %s\n", title, url)
 	return nil
