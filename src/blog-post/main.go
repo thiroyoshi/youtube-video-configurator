@@ -64,7 +64,7 @@ func RunBlogPost() error {
 		return fmt.Errorf("failed to post to Hatena Blog: %v", err)
 	}
 
-	xMessage := fmt.Sprintf("ブログを更新しました！\n #GABA #Fortnite #フォートナイト\n\n%s\n%s", title, url)
+	xMessage := fmt.Sprintf("ブログを更新しました！\n#Fortnite #フォートナイト #はてなブログ #GABA\n\n%s\n%s", title, url)
 	if err = x.PostToX(xMessage); err != nil {
 		slog.Error("Failed to post message to X", "error", err)
 	}
